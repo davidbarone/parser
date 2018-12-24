@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -246,6 +248,20 @@ namespace ParserDemo
             }
             return null;
         }
+
+        /// <summary>
+        /// Parses an abstract syntax tree using a set of visitors.
+        /// </summary>
+        /// <typeparam name="TState"></typeparam>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public object Execute(Node node, Visitor visitors)
+        {
+            node.Accept(visitors);
+            var a = visitors.State;
+            var b = 1;
+            return a;
+        }
     }
 
     /// <summary>
@@ -427,6 +443,11 @@ namespace ParserDemo
         /// Properties (children) of the production rule.
         /// </summary>
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
+
+        public void Accept(Visitor v)
+        {
+            v.Visit(this);
+        }
     }
 
     #endregion
@@ -652,22 +673,35 @@ namespace ParserDemo
 
     #endregion
 
-    #region Visitors
-
     /// <summary>
-    /// Visits the nodes of an abstract syntax tree. Handlers are provided for each type of node.
+    /// Object that can traverse an abstract syntax tree, using a visitor pattern.
     /// </summary>
-    public class NodeVisitor
+    public class Visitor
     {
-        public NodeVisitor(Dictionary<string, Func<Node, bool>> visitors)
+        public dynamic State = new ExpandoObject();
+
+        Dictionary<string, Action<Visitor, Node>> Visitors { get; set; }
+
+        public Visitor()
         {
-            this.Visitors = visitors;
+            Visitors = new Dictionary<string, Action<Visitor, Node>>();
         }
 
-        public Dictionary<string, Func<Node, bool>> Visitors { get; set; }
-    }
+        public void AddVisitor(string key, Action<Visitor, Node> visitor)
+        {
+            this.Visitors.Add(key, visitor);
+        }
 
-    #endregion
+        public void Visit(Node node)
+        {
+            var name = node.Name;
+            var visitor = this.Visitors.Keys.FirstOrDefault(k => k.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (visitor == null)
+                throw new Exception(string.Format("Visitor not found for {0}!", name));
+
+            Visitors[visitor](this, node);
+        }
+    }
 
     class Program
     {
@@ -704,28 +738,6 @@ namespace ParserDemo
                         ), true
                     )
                 ),
-                // Left recursive?
-                new ProductionRule(
-                    "BOOLEAN_TERM",
-                    Symbol.Choice(
-                        "",
-                        Symbol.One("", "COMPARISON_PREDICATE"),
-                        Symbol.Complex(
-                            "",
-                            Symbol.One("", "COMPARISON_PREDICATE"),
-                            Symbol.One("", "LOGICAL_OPERATOR"),
-                            Symbol.One("", "BOOLEAN_TERM")
-                        )
-                    )
-                ),
-                new ProductionRule(
-                    "LOGICAL_OPERATOR",
-                    Symbol.Choice(
-                        "",
-                        Symbol.One("", "AND_LOG_OP"),
-                        Symbol.One("", "OR_LOG_OP")
-                    )
-                ),
                 new ProductionRule(
                     "COMPARISON_PREDICATE",
                     Symbol.One("LHV", "COMPARISON_OPERAND"),
@@ -755,19 +767,63 @@ namespace ParserDemo
                 )
             };
 
-            NodeVisitor visitors = new NodeVisitor(new Dictionary<string, Func<Node, bool>>()
+            var visitor = new Visitor();
+            visitor.AddVisitor(
+                "WHERE_FILTER",
+                (v, n) =>
                 {
-                    {"test", (node) => { return true;  } }
+                    // Set up state
+                    v.State.Parameters = new List<SqlParameter>();
+                    v.State.Predicates = new List<string>();
+
+                    foreach (var item in (IEnumerable<Object>)n.Properties["PREDICATES"])
+                    {
+                        var node = item as Node;
+                        if (node == null)
+                            throw new Exception("Array element type not Node.");
+                        node.Accept(v);
+                    }
+
+                    v.State.Sql = string.Join(" AND ", visitor.State.Predicates);
                 }
             );
 
-            var numeric1 = "123";
-            var string1 = "'HELLO WORLD'";
-            var reference1 = "MY_FIELD ";
+            visitor.AddVisitor(
+                "COMPARISON_PREDICATE",
+                (v, n) =>
+                {
+                    Dictionary<string, string> operators = new Dictionary<string, string>()
+                            {
+                                {"EQ_OP", "="},
+                                {"NE_OP", "<>"},
+                                {"LT_OP", "<"},
+                                {"LE_OP", "<="},
+                                {"GT_OP", ">"},
+                                {"GE_OP", ">="},
+                            };
+
+                    var i = v.State.Parameters.Count;
+                    var sql = string.Format(
+                        "{0} {1} @{2}",
+                        ((Token)n.Properties["LHV"]).TokenValue,
+                        operators[(string)((Token)n.Properties["OPERATOR"]).TokenName],
+                        "P" + i
+                    );
+                    v.State.Predicates.Add(sql);
+                    v.State.Parameters.Add(new SqlParameter()
+                    {
+                        ParameterName = "P" + i,
+                        Value = ((Token)n.Properties["RHV"]).TokenValue
+                    });
+                }
+            );
+
             var expr1 = "FIELD_1 EQ '123' AND FIELD_2 EQ 'ABC' AND FIELD_3 LT 'ABC' AND FIELD_4 GE 123.45";
             var tokens = new Lexer(rules).Tokenise(expr1);
             var parser = new Parser(productionRules);
             var ast = parser.Parse(tokens, "WHERE_FILTER");
+            parser.Execute(ast, visitor);
+            
 
             var a = tokens;
         }
