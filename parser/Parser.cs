@@ -172,61 +172,33 @@ namespace Parser
                 return null;
 
             var tokens = this.Tokenise(input);
-            return this.Parse(tokens, rootProductionRule, throwOnFailure);
-        }
 
-        public Node Parse(IList<Token> tokens, string rootProductionRule, bool throwOnFailure = true)
-        {
             if (tokens == null || tokens.Count() == 0)
-                return null;
+                throw new Exception("input yields not tokens!");
 
             // find any matching production rules.
             var rules = ProductionRules.Where(p => rootProductionRule == null || p.Name.Equals(rootProductionRule, StringComparison.OrdinalIgnoreCase));
             if (!rules.Any())
                 throw new Exception(string.Format("Production rule: {0} not found.", rootProductionRule));
 
-            ParserContext context = new ParserContext(ProductionRules, tokens);
-
             // try each rule. Use the first rule which succeeds.
             foreach (var rule in rules)
             {
+                ParserContext context = new ParserContext(ProductionRules, tokens);
                 context.PushResult(null);
                 var ok = rule.Parse(context);
                 var result = context.PopResult();
                 if (ok && context.TokenEOF)
                 {
                     return (Node)result;
-                }
+                } else if (!context.TokenEOF)
+                    throw new Exception("Unexpected input at EOF.");
             }
 
-            // if got here, then no rules match
-            if (!context.TokenEOF)
-            {
-                throw new Exception("Unexpected input at EOF.");
-            }
+            if (throwOnFailure)
+                throw new Exception("Input cannot be parsed.");
             else
-            {
-                if (throwOnFailure)
-                    throw new Exception("Input cannot be parsed.");
-                else
-                    return null;
-            }
-        }
-
-        /// <summary>
-        /// Parses the tokens into an abstract syntax tree (AST).
-        /// </summary>
-        /// <param name="tokens"></param>
-        /// <returns></returns>
-        public Node Parse(IList<Token> tokens)
-        {
-            foreach (var rule in ProductionRules)
-            {
-                var result = Parse(tokens, rule.Name, false);
-                if (result != null)
-                    return result;
-            }
-            return null;
+                return null;
         }
 
         /// <summary>
@@ -265,7 +237,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Name of the rule
+        /// Name of the rule. Used to name nodes of the abstract syntax tree.
         /// </summary>
         public string Name { get; set; }
 
@@ -281,7 +253,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// The symbols that make up this rule
+        /// The symbols that make up this rule.
         /// </summary>
         public List<Symbol> Symbols { get; set; }
 
@@ -292,8 +264,6 @@ namespace Parser
         /// <returns></returns>
         public bool Parse(ParserContext context)
         {
-            Node node = new Node();
-            node.Name = this.Name;
             foreach (var symbol in this.Symbols)
             {
                 context.PushResult(null);
@@ -381,21 +351,24 @@ namespace Parser
         /// <param name="property"></param>
         public void ConvertResultToIEnumerable(string property)
         {
-            var result = Results.Peek();
-            var resultAsNode = result as Node;
+            if (property != null)
+            {
+                var result = Results.Peek();
+                var resultAsNode = result as Node;
 
-            // Convert top item on stack to IEnumerable
-            if (result != null && property == "")
-            {
-                var r = Results.Pop();
-                r = r.Union(null);
-                Results.Push(r);
-            }
-            else if (resultAsNode != null && resultAsNode.Properties.ContainsKey(property) && !string.IsNullOrEmpty(property))
-            {
-                var r = (Node)Results.Pop();
-                r.Properties[property] = r.Properties[property].Union(null);
-                Results.Push(r);
+                // Convert top item on stack to IEnumerable
+                if (result != null && property == "")
+                {
+                    var r = Results.Pop();
+                    r = r.Union(null);
+                    Results.Push(r);
+                }
+                else if (resultAsNode != null && resultAsNode.Properties.ContainsKey(property) && !string.IsNullOrEmpty(property))
+                {
+                    var r = (Node)Results.Pop();
+                    r.Properties[property] = r.Properties[property].Union(null);
+                    Results.Push(r);
+                }
             }
         }
 
@@ -581,6 +554,52 @@ namespace Parser
         }
 
         /// <summary>
+        /// Parses a set of symbols.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="symbols"></param>
+        /// <returns></returns>
+        private bool ParseSymbols(ParserContext context, List<Symbol> symbols)
+        {
+            // Rule is non terminal
+            foreach (var symbol in symbols)
+            {
+                context.ConvertResultToIEnumerable(symbol.Alias);
+                var once = false;
+                while (true)
+                {
+                    if ((symbol.Optional || once) && context.TokenEOF)
+                        break;
+                    else if (context.TokenEOF)
+                        throw new Exception("Unexpected EOF");
+
+                    context.PushResult(null);
+                    var ok = symbol.Parse(context);
+                    var result = context.PopResult();
+                    if (ok)
+                    {
+                        context.UpdateResult(result, symbol.Alias, this.Name);
+                        once = true;
+                    }
+                    else if (once && symbol.Many)
+                    {
+                        // have had at least 1 success, with 'many' symbol. Still quit with success
+                        break;
+                    }
+                    else
+                    {
+                        // General case if ok = false
+                        return false;
+                    }
+                    if (!symbol.Many)
+                        break;
+                }
+            }
+            // if got here, then success
+            return true;
+        }
+
+        /// <summary>
         /// Take the token list and attempts to parse.
         /// </summary>
         /// <param name="tokens"></param>
@@ -606,48 +625,8 @@ namespace Parser
                 {
                     foreach (var rule in rules)
                     {
-                        bool success = true;
-                        // Rule is non terminal
-                        foreach (var symbol in rule.Symbols)
-                        {
-                            context.ConvertResultToIEnumerable(symbol.Alias);
-
-                            var once = false;
-                            while (true)
-                            {
-                                if ((this.Optional || once) && context.TokenEOF)
-                                    break;
-
-                                context.PushResult(null);
-                                var ok = symbol.Parse(context);
-                                var result = context.PopResult();
-                                if (ok)
-                                {
-                                    context.UpdateResult(result, symbol.Alias, this.Name);
-                                    once = true;
-                                    if (symbol.Many)
-                                    {
-                                        var a = 1;
-                                    }
-                                }
-                                else
-                                {
-                                    if (once && symbol.Many)
-                                    {
-                                        // have had at least 1 success, with 'many' symbol. Still quit with success
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        success = false;
-                                        break;
-                                    }
-                                }
-                                if (!symbol.Many)
-                                    break;
-                            }
-                        }
-                        if (success)
+                        var ok = ParseSymbols(context, rule.Symbols);
+                        if (ok)
                             return true;
                     }
                     return false || Optional;

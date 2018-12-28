@@ -23,6 +23,7 @@ namespace Parser
                 new ProductionRule("NE_OP", "NE"),
                 new ProductionRule("LT_OP", "LT"),
                 new ProductionRule("LE_OP", "LE"),
+                new ProductionRule("GT_OP", "GT"),
                 new ProductionRule("GE_OP", "GE"),
                 new ProductionRule("IDENTIFIER", "[A-Z_][A-Z_0-9]+"),
                 new ProductionRule("WHITESPACE", @"\s+"),
@@ -96,14 +97,84 @@ namespace Parser
                 }
             );
 
-            var expr1 = "FIELD_1 EQ '123'";
-            var parser = new Parser(grammar);
-            var tokens = parser.Tokenise(expr1);
-            var ast = parser.Parse(tokens, "where filter");
+            // Success
+            TestSuccess(grammar, null, "where filter");
+            TestSuccess(grammar, "", "where filter");
+            TestSuccess(grammar, "FIELD_1 EQ '123'", "comparison predicate");
+            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter");
+            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter");
+            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter");
+
+            // Failure
+            TestFailure(grammar, "FIELD", "comparison predicate");
+            TestFailure(grammar, "FIELD GT 123 AND", "comparison predicate");
+            TestFailure(grammar, "FIELD", "where filter");
+            TestFailure(grammar, "FIELD GT 123 AND", "where filter");
+
+            Console.WriteLine("Press a key to continue.");
+            Console.ReadKey();
+            // Testing execution of AST.
+            /*
             var result = parser.Execute(ast, visitor, (state) => new {
                 Sql = state.Sql,
                 Parameters = state.Parameters
             });
+            */
+        }
+
+        public static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule)
+        {
+            Console.WriteLine(string.Format("TEST SUCCESS: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule));
+            try
+            {
+                var parser = new Parser(grammar);
+                var ast = parser.Parse(input, productionRule);
+
+                if (ast == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Parsing successful, but tree is empty.");
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Success");
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(string.Format("Failure: {0}", ex.Message));
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+        }
+
+        public static void TestFailure(List<ProductionRule> grammar, string input, string productionRule)
+        {
+            Console.WriteLine(string.Format("TEST FAILURE: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule));
+            try
+            {
+                var parser = new Parser(grammar);
+                var ast = parser.Parse(input, productionRule);
+
+                if (ast != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Parser returns a tree where null was expected.");
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Expecting exception but none thrown.");
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+            catch
+            {
+                // Expect to get here.
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Success");
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
         }
     }
 }
