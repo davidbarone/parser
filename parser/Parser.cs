@@ -191,7 +191,8 @@ namespace Parser
                 if (ok && context.TokenEOF)
                 {
                     return (Node)result;
-                } else if (!context.TokenEOF)
+                }
+                else if (!context.TokenEOF)
                     throw new Exception("Unexpected input at EOF.");
             }
 
@@ -640,13 +641,17 @@ namespace Parser
     /// </summary>
     public class Visitor
     {
-        public dynamic State = new ExpandoObject();
+        public dynamic State = null;
 
         Dictionary<string, Action<Visitor, Node>> Visitors { get; set; }
 
-        public Visitor()
+        public Visitor(dynamic initialState = null)
         {
             Visitors = new Dictionary<string, Action<Visitor, Node>>();
+            if (initialState != null)
+                State = initialState;
+            else
+                State = new ExpandoObject();
         }
 
         public void AddVisitor(string key, Action<Visitor, Node> visitor)

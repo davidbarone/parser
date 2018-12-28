@@ -16,7 +16,7 @@ namespace Parser
             List<ProductionRule> grammar = new List<ProductionRule>()
             {
                 new ProductionRule("LITERAL_STRING", "['][^']*[']"),
-                new ProductionRule("LITERAL_NUMBER", @"-?(([1-9]\d*)|0)(.0*[1-9](0*[1-9])*)"),
+                new ProductionRule("LITERAL_NUMBER", @"[+-]?((\d+(\.\d*)?)|(\.\d+))"),
                 new ProductionRule("AND_LOG_OP", "AND"),
                 new ProductionRule("OR_LOG_OP", "AND"),
                 new ProductionRule("EQ_OP", "EQ"),
@@ -101,9 +101,10 @@ namespace Parser
             TestSuccess(grammar, null, "where filter");
             TestSuccess(grammar, "", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ '123'", "comparison predicate");
-            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter");
+            TestSuccess(grammar, "FIELD_1 EQ 123", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter");
+            TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter");
 
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");
