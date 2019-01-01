@@ -192,8 +192,6 @@ namespace Parser
                 {
                     return (Node)result;
                 }
-                else if (!context.TokenEOF)
-                    throw new Exception("Unexpected input at EOF.");
             }
 
             if (throwOnFailure)
@@ -265,19 +263,43 @@ namespace Parser
         /// <returns></returns>
         public bool Parse(ParserContext context)
         {
+            // Rule is non terminal
             foreach (var symbol in this.Symbols)
             {
-                context.PushResult(null);
-                var ok = symbol.Parse(context);
-                var result = context.PopResult();
-
-                if (ok)
+                context.ConvertResultToIEnumerable(symbol.Alias);
+                var once = false;
+                while (true)
                 {
-                    context.UpdateResult(result, symbol.Alias, this.Name);
+                    if ((symbol.Optional || once) && context.TokenEOF)
+                        break;
+                    else if (context.TokenEOF)
+                        throw new Exception("Unexpected EOF");
+
+                    context.PushResult(null);
+                    var ok = symbol.Parse(context);
+                    var result = context.PopResult();
+                    if (ok)
+                    {
+                        context.UpdateResult(result, symbol.Alias, this.Name);
+                        once = true;
+                    }
+                    else if (once && symbol.Many)
+                    {
+                        // have had at least 1 success, with 'many' symbol. Still quit with success
+                        break;
+                    }
+                    else if (symbol.Optional)
+                        break;
+                    else
+                    {
+                        // General case if ok = false
+                        return false;
+                    }
+                    if (!symbol.Many)
+                        break;
                 }
-                else
-                    return false;
             }
+            // if got here, then success
             return true;
         }
     }
@@ -294,6 +316,11 @@ namespace Parser
 
         public IList<ProductionRule> ProductionRules { get; private set; }
         private IList<Token> Tokens { get; set; }
+
+        public Token PeekToken()
+        {
+            return Tokens[CurrentTokenIndex];
+        }
 
         /// <summary>
         /// Returns true if past the end of the token list.
@@ -534,6 +561,10 @@ namespace Parser
         /// <returns></returns>
         public bool Parse(ParserContext context)
         {
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("Symbol={0}, Alias={1} Token={2},{3},{4}, Results={5}", this.Name, this.Alias, context.CurrentTokenIndex, context.PeekToken().TokenName, context.PeekToken().TokenValue, context.Results.Count());
+            Console.ForegroundColor = ConsoleColor.Gray;
+
             // save token position
             int temp = context.CurrentTokenIndex;
             bool ok = false;
@@ -542,62 +573,22 @@ namespace Parser
             {
                 ok = this.ParseHandler(context);
                 // wind back the token index if the symbol did not match tokens.
+                Console.WriteLine(string.Format("OK = {0}", ok));
                 if (ok)
                     once = true;
+                else
+                {
+                    if (!Many)
+                        context.CurrentTokenIndex = temp;
+
+                    break;
+                }
                 if (!Many)
                     break;
-
-                if (!ok && !Many)
-                    context.CurrentTokenIndex = temp;
             }
-            // return true if match, or optional and didn't match.
+
+            // return true if match (at least once).
             return ok || once;
-        }
-
-        /// <summary>
-        /// Parses a set of symbols.
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="symbols"></param>
-        /// <returns></returns>
-        private bool ParseSymbols(ParserContext context, List<Symbol> symbols)
-        {
-            // Rule is non terminal
-            foreach (var symbol in symbols)
-            {
-                context.ConvertResultToIEnumerable(symbol.Alias);
-                var once = false;
-                while (true)
-                {
-                    if ((symbol.Optional || once) && context.TokenEOF)
-                        break;
-                    else if (context.TokenEOF)
-                        throw new Exception("Unexpected EOF");
-
-                    context.PushResult(null);
-                    var ok = symbol.Parse(context);
-                    var result = context.PopResult();
-                    if (ok)
-                    {
-                        context.UpdateResult(result, symbol.Alias, this.Name);
-                        once = true;
-                    }
-                    else if (once && symbol.Many)
-                    {
-                        // have had at least 1 success, with 'many' symbol. Still quit with success
-                        break;
-                    }
-                    else
-                    {
-                        // General case if ok = false
-                        return false;
-                    }
-                    if (!symbol.Many)
-                        break;
-                }
-            }
-            // if got here, then success
-            return true;
         }
 
         /// <summary>
@@ -626,11 +617,11 @@ namespace Parser
                 {
                     foreach (var rule in rules)
                     {
-                        var ok = ParseSymbols(context, rule.Symbols);
+                        var ok = rule.Parse(context);
                         if (ok)
                             return true;
                     }
-                    return false || Optional;
+                    return false;
                 }
             }
         }

@@ -15,8 +15,6 @@ namespace Parser
         {
             List<ProductionRule> grammar = new List<ProductionRule>()
             {
-                new ProductionRule("LITERAL_STRING", "['][^']*[']"),
-                new ProductionRule("LITERAL_NUMBER", @"[+-]?((\d+(\.\d*)?)|(\.\d+))"),
                 new ProductionRule("AND_LOG_OP", "AND"),
                 new ProductionRule("OR_LOG_OP", "AND"),
                 new ProductionRule("EQ_OP", "EQ"),
@@ -25,6 +23,13 @@ namespace Parser
                 new ProductionRule("LE_OP", "LE"),
                 new ProductionRule("GT_OP", "GT"),
                 new ProductionRule("GE_OP", "GE"),
+                new ProductionRule("LEFT_PAREN", "[(]"),
+                new ProductionRule("RIGHT_PAREN", "[)]"),
+                new ProductionRule("COMMA", ","),
+                new ProductionRule("IN", "(IN)"),
+
+                new ProductionRule("LITERAL_STRING", "['][^']*[']"),
+                new ProductionRule("LITERAL_NUMBER", @"[+-]?((\d+(\.\d*)?)|(\.\d+))"),
                 new ProductionRule("IDENTIFIER", "[A-Z_][A-Z_0-9]+"),
                 new ProductionRule("WHITESPACE", @"\s+"),
 
@@ -40,7 +45,10 @@ namespace Parser
                 new ProductionRule("comparison operand", "=IDENTIFIER"),
 
                 new ProductionRule("comparison predicate", "LHV=comparison operand", "OPERATOR=comparison operator", "RHV=comparison operand"),
+                new ProductionRule("in factor", "COMMA!", "=comparison operand"),
+                new ProductionRule("in predicate", "LHV=comparison operand", "IN!", "LEFT_PAREN!", "RHV=comparison operand", "RHV=in factor*", "RIGHT_PAREN!"),
                 new ProductionRule("boolean expression", "=comparison predicate"),
+                new ProductionRule("boolean expression", "=in predicate"),
                 new ProductionRule("and factor", "AND_LOG_OP!", "=boolean expression"),
                 new ProductionRule("and logical expression", "=boolean expression", "=and factor*"),
                 new ProductionRule("where filter", "PREDICATES=and logical expression")
@@ -97,14 +105,39 @@ namespace Parser
                 }
             );
 
+            visitor.AddVisitor(
+                "in predicate",
+                (v, n) =>
+                {
+                    var i = v.State.Parameters.Count;
+                    var sql = "";
+                    sql = string.Format(
+                        "{0} IN @{1}",
+                        ((Token)n.Properties["LHV"]).TokenValue,
+                        "P" + i
+                    );
+
+                    // Add the SQL + update args object.
+                    v.State.Predicates.Add(sql);
+                    object value = ((List<object>)n.Properties["RHV"]).Select(t => ((Token)t).TokenValue.Replace("'", ""));
+                    v.State.Parameters.Add(new SqlParameter()
+                    {
+                        ParameterName = "P" + i,
+                        Value = value
+                    });
+                }
+            );
+
             // Success
+            TestSuccess(grammar, "MY_LIST IN ('abc')", "where filter", visitor);
             TestSuccess(grammar, null, "where filter");
             TestSuccess(grammar, "", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ '123'", "comparison predicate");
+            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ 123", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter");
             TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter");
             TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter");
+            TestSuccess(grammar, "MY_LIST IN ('abc','mno','xyz')", "where filter", visitor);
 
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");
@@ -123,13 +156,18 @@ namespace Parser
             */
         }
 
-        public static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule)
+        public static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule, Visitor visitors = null)
         {
             Console.WriteLine(string.Format("TEST SUCCESS: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule));
             try
             {
                 var parser = new Parser(grammar);
                 var ast = parser.Parse(input, productionRule);
+                if (visitors != null)
+                {
+                    var result = parser.Execute(ast, visitors);
+                    var a = result;
+                }
 
                 if (ast == null)
                 {
