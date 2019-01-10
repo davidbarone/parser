@@ -15,23 +15,23 @@ namespace Parser
         {
             List<ProductionRule> grammar = new List<ProductionRule>()
             {
-                new ProductionRule("AND_LOG_OP", "AND"),
-                new ProductionRule("OR_LOG_OP", "AND"),
-                new ProductionRule("EQ_OP", "EQ"),
-                new ProductionRule("NE_OP", "NE"),
-                new ProductionRule("LT_OP", "LT"),
-                new ProductionRule("LE_OP", "LE"),
-                new ProductionRule("GT_OP", "GT"),
-                new ProductionRule("GE_OP", "GE"),
+                new ProductionRule("AND_LOG_OP", @"\bAND\b"),
+                new ProductionRule("OR_LOG_OP", @"\bOR\b"),
+                new ProductionRule("EQ_OP", @"\bEQ\b"),
+                new ProductionRule("NE_OP", @"\bNE\b"),
+                new ProductionRule("LT_OP", @"\bLT\b"),
+                new ProductionRule("LE_OP", @"\bLE\b"),
+                new ProductionRule("GT_OP", @"\bGT\b"),
+                new ProductionRule("GE_OP", @"\bGE\b"),
                 new ProductionRule("LEFT_PAREN", "[(]"),
                 new ProductionRule("RIGHT_PAREN", "[)]"),
                 new ProductionRule("COMMA", ","),
-                new ProductionRule("IN", "(IN)"),
+                new ProductionRule("IN", @"\b(IN)\b"),
 
                 new ProductionRule("LITERAL_STRING", "['][^']*[']"),
                 new ProductionRule("LITERAL_NUMBER", @"[+-]?((\d+(\.\d*)?)|(\.\d+))"),
                 new ProductionRule("IDENTIFIER", "[A-Z_][A-Z_0-9]+"),
-                new ProductionRule("WHITESPACE", @"\s+"),
+                //new ProductionRule("WHITESPACE", @"\s+"),
 
                 new ProductionRule("comparison operator", "=EQ_OP"),
                 new ProductionRule("comparison operator", "=NE_OP"),
@@ -138,6 +138,8 @@ namespace Parser
             TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter");
             TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter");
             TestSuccess(grammar, "MY_LIST IN ('abc','mno','xyz')", "where filter", visitor);
+            // Using an identifier starting with same characters as another token ('LE')
+            TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter");
 
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");

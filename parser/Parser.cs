@@ -561,9 +561,11 @@ namespace Parser
         /// <returns></returns>
         public bool Parse(ParserContext context)
         {
+            /*
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine("Symbol={0}, Alias={1} Token={2},{3},{4}, Results={5}", this.Name, this.Alias, context.CurrentTokenIndex, context.PeekToken().TokenName, context.PeekToken().TokenValue, context.Results.Count());
             Console.ForegroundColor = ConsoleColor.Gray;
+            */
 
             // save token position
             int temp = context.CurrentTokenIndex;
@@ -573,7 +575,7 @@ namespace Parser
             {
                 ok = this.ParseHandler(context);
                 // wind back the token index if the symbol did not match tokens.
-                Console.WriteLine(string.Format("OK = {0}", ok));
+                //Console.WriteLine(string.Format("OK = {0}", ok));
                 if (ok)
                     once = true;
                 else
