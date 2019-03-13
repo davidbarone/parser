@@ -51,7 +51,9 @@ namespace Parser
                 new ProductionRule("boolean expression", "=in predicate"),
                 new ProductionRule("and factor", "AND_LOG_OP!", "=boolean expression"),
                 new ProductionRule("and logical expression", "=boolean expression", "=and factor*"),
-                new ProductionRule("where filter", "PREDICATES=and logical expression")
+                new ProductionRule("or factor", "OR_LOG_OP!", "=and logical expression"),
+                new ProductionRule("or logical expression", "=and logical expression", "=or factor*"),
+                new ProductionRule("where filter", "PREDICATES=or logical expression")
             };
 
             var visitor = new Visitor();
@@ -140,6 +142,7 @@ namespace Parser
             TestSuccess(grammar, "MY_LIST IN ('abc','mno','xyz')", "where filter", visitor);
             // Using an identifier starting with same characters as another token ('LE')
             TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter");
+            TestSuccess(grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "where filter");
 
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");
