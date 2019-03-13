@@ -49,11 +49,11 @@ namespace Parser
                 new ProductionRule("in predicate", "LHV=comparison operand", "IN!", "LEFT_PAREN!", "RHV=comparison operand", "RHV=in factor*", "RIGHT_PAREN!"),
                 new ProductionRule("boolean expression", "=comparison predicate"),
                 new ProductionRule("boolean expression", "=in predicate"),
-                new ProductionRule("and factor", "AND_LOG_OP!", "=boolean expression"),
-                new ProductionRule("and logical expression", "=boolean expression", "=and factor*"),
-                new ProductionRule("or factor", "OR_LOG_OP!", "=and logical expression"),
-                new ProductionRule("or logical expression", "=and logical expression", "=or factor*"),
-                new ProductionRule("where filter", "PREDICATES=or logical expression")
+                new ProductionRule("boolean factor", "AND_LOG_OP!", "=boolean expression"),
+                new ProductionRule("boolean term", "AND=boolean expression", "AND=boolean factor*"),
+                new ProductionRule("search factor", "OR_LOG_OP!", "=boolean term"),
+                new ProductionRule("search condition", "=boolean term", "=search factor*"),
+                new ProductionRule("where filter", "OR=search condition")
             };
 
             var visitor = new Visitor();
@@ -63,9 +63,10 @@ namespace Parser
                 {
                     // Set up state
                     v.State.Parameters = new List<SqlParameter>();
-                    v.State.Predicates = new List<string>();
+                    v.State.Predicates = new Stack<string>();
 
-                    foreach (var item in (IEnumerable<Object>)n.Properties["PREDICATES"])
+                    dynamic searchCondition = n.Properties["OR"];
+                    foreach (var item in (IEnumerable<Object>)searchCondition)
                     {
                         var node = item as Node;
                         if (node == null)
@@ -73,7 +74,29 @@ namespace Parser
                         node.Accept(v);
                     }
 
-                    v.State.Sql = string.Join(" AND ", visitor.State.Predicates);
+                    v.State.Sql = string.Format(" ({0}) ", string.Join(" OR ", visitor.State.Predicates));
+                }
+            );
+
+            visitor.AddVisitor(
+                "boolean term",
+                (v, n) =>
+                {
+                    foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
+                    {
+                        var node = item as Node;
+                        if (node == null)
+                            throw new Exception("Array element type not Node.");
+                        node.Accept(v);
+                    }
+
+                    List<string> items = new List<string>();
+                    foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
+                    {
+                        items.Add(v.State.Predicates.Pop());
+                    }
+                    var sql = string.Format(" ({0}) ", string.Join(" AND ", items.ToArray()));
+                    v.State.Predicates.Push(sql);
                 }
             );
 
@@ -98,7 +121,7 @@ namespace Parser
                         operators[(string)((Token)n.Properties["OPERATOR"]).TokenName],
                         "P" + i
                     );
-                    v.State.Predicates.Add(sql);
+                    v.State.Predicates.Push(sql);
                     v.State.Parameters.Add(new SqlParameter()
                     {
                         ParameterName = "P" + i,
@@ -120,7 +143,7 @@ namespace Parser
                     );
 
                     // Add the SQL + update args object.
-                    v.State.Predicates.Add(sql);
+                    v.State.Predicates.Push(sql);
                     object value = ((List<object>)n.Properties["RHV"]).Select(t => ((Token)t).TokenValue.Replace("'", ""));
                     v.State.Parameters.Add(new SqlParameter()
                     {
@@ -131,6 +154,7 @@ namespace Parser
             );
 
             // Success
+            TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
             TestSuccess(grammar, "MY_LIST IN ('abc')", "where filter", visitor);
             TestSuccess(grammar, null, "where filter");
             TestSuccess(grammar, "", "where filter");
@@ -143,7 +167,7 @@ namespace Parser
             // Using an identifier starting with same characters as another token ('LE')
             TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter");
             TestSuccess(grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "where filter");
-
+            TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");
             TestFailure(grammar, "FIELD GT 123 AND", "comparison predicate");
@@ -170,8 +194,11 @@ namespace Parser
                 var ast = parser.Parse(input, productionRule);
                 if (visitors != null)
                 {
-                    var result = parser.Execute(ast, visitors);
-                    var a = result;
+                    dynamic result = parser.Execute(ast, visitors);
+                    var a = result.Sql;
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(string.Format("Output: {0}", a));
+                    Console.ForegroundColor = ConsoleColor.Gray;
                 }
 
                 if (ast == null)
