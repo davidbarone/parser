@@ -55,7 +55,7 @@ namespace Parser
 
                 new ProductionRule("comparison predicate", "LHV=comparison operand", "OPERATOR=comparison operator", "RHV=comparison operand"),
                 new ProductionRule("in factor", "COMMA!", "=comparison operand"),
-                new ProductionRule("in predicate", "LHV=comparison operand", "IN!", "LEFT_PAREN!", "RHV=comparison operand", "RHV=in factor*", "RIGHT_PAREN!"),
+                new ProductionRule("in predicate", "LHV=comparison operand", "NOT=NOT?", "IN!", "LEFT_PAREN!", "RHV=comparison operand", "RHV=in factor*", "RIGHT_PAREN!"),
                 new ProductionRule("between predicate", "LHV=comparison operand", "NOT=NOT?", "BETWEEN!", "OP1=comparison operand", "AND!", "OP2=comparison operand"),
                 new ProductionRule("contains predicate", "LHV=comparison operand", "NOT=NOT?", "CONTAINS!", "RHV=comparison operand"),
                 new ProductionRule("blank predicate", "LHV=comparison operand", "NOT=NOT?", "ISBLANK"),
@@ -115,6 +115,7 @@ namespace Parser
             TestSuccess(Grammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "search condition", Visitor);
             TestSuccess(Grammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "search condition", Visitor);
             TestSuccess(Grammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "search condition", Visitor);
+            TestSuccess(Grammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 ISBLANK) OR (LEVEL_4 NOT IN (1,2,3) AND LEVEL_5 CONTAINS 'TEST'))", "search condition", Visitor);
 
             // Failure
             TestFailure(Grammar, "FIELD", "comparison predicate");
@@ -248,8 +249,9 @@ namespace Parser
                     var i = v.State.Parameters.Count;
                     var sql = "";
                     sql = string.Format(
-                        "{0} IN @{1}",
+                        "{0} {1} @{2}",
                         ((Token)n.Properties["LHV"]).TokenValue,
+                        n.Properties.ContainsKey("NOT") ? "NOT IN" : "IN",
                         "P" + i
                     );
 
