@@ -166,7 +166,7 @@ namespace Parser
                     }
                     var sql = string.Format("{0}", string.Join(" OR ", items.ToArray()));
                     v.State.Predicates.Push(sql);
-                    v.State.Sql = string.Format("{0}", string.Join(" OR ", visitor.State.Predicates));
+                    v.State.Sql = sql;
                 }
             );
 
