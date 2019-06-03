@@ -11,12 +11,14 @@ namespace Parser
 {
     class Program
     {
+        static int TestNumber;
+
         static void Main(string[] args)
         {
             List<ProductionRule> grammar = new List<ProductionRule>()
             {
-                new ProductionRule("AND_LOG_OP", @"\bAND\b"),
-                new ProductionRule("OR_LOG_OP", @"\bOR\b"),
+                new ProductionRule("AND", @"\bAND\b"),
+                new ProductionRule("OR", @"\bOR\b"),
                 new ProductionRule("EQ_OP", @"\bEQ\b"),
                 new ProductionRule("NE_OP", @"\bNE\b"),
                 new ProductionRule("LT_OP", @"\bLT\b"),
@@ -27,10 +29,14 @@ namespace Parser
                 new ProductionRule("RIGHT_PAREN", "[)]"),
                 new ProductionRule("COMMA", ","),
                 new ProductionRule("IN", @"\b(IN)\b"),
+                new ProductionRule("CONTAINS", @"\bCONTAINS\b"),
+                new ProductionRule("BETWEEN", @"\bBETWEEN\b"),
+                new ProductionRule("ISBLANK", @"\bISBLANK\b"),
+                new ProductionRule("NOT", @"\bNOT\b"),
 
                 new ProductionRule("LITERAL_STRING", "['][^']*[']"),
                 new ProductionRule("LITERAL_NUMBER", @"[+-]?((\d+(\.\d*)?)|(\.\d+))"),
-                new ProductionRule("IDENTIFIER", "[A-Z_][A-Z_0-9]+"),
+                new ProductionRule("IDENTIFIER", "[A-Z_][A-Z_0-9]*"),
                 //new ProductionRule("WHITESPACE", @"\s+"),
 
                 new ProductionRule("comparison operator", "=EQ_OP"),
@@ -47,13 +53,25 @@ namespace Parser
                 new ProductionRule("comparison predicate", "LHV=comparison operand", "OPERATOR=comparison operator", "RHV=comparison operand"),
                 new ProductionRule("in factor", "COMMA!", "=comparison operand"),
                 new ProductionRule("in predicate", "LHV=comparison operand", "IN!", "LEFT_PAREN!", "RHV=comparison operand", "RHV=in factor*", "RIGHT_PAREN!"),
-                new ProductionRule("boolean expression", "=comparison predicate"),
-                new ProductionRule("boolean expression", "=in predicate"),
-                new ProductionRule("boolean factor", "AND_LOG_OP!", "=boolean expression"),
-                new ProductionRule("boolean term", "AND=boolean expression", "AND=boolean factor*"),
-                new ProductionRule("search factor", "OR_LOG_OP!", "=boolean term"),
+                new ProductionRule("between predicate", "LHV=comparison operand", "NOT=NOT?", "BETWEEN!", "OP1=comparison operand", "AND!", "OP2=comparison operand"),
+                new ProductionRule("contains predicate", "LHV=comparison operand", "NOT=NOT?", "CONTAINS!", "RHV=comparison operand"),
+                new ProductionRule("blank predicate", "LHV=comparison operand", "NOT=NOT?", "ISBLANK"),
+
+                new ProductionRule("predicate", "=comparison predicate"),
+                new ProductionRule("predicate", "=in predicate"),
+                new ProductionRule("predicate", "=between predicate"),
+                new ProductionRule("predicate", "=contains predicate"),
+                new ProductionRule("predicate", "=blank predicate"),
+
+                new ProductionRule("boolean primary", "LEFT_PAREN!", "CONDITION=where filter", "RIGHT_PAREN!"),
+                new ProductionRule("boolean primary", "=predicate"),
+
+                new ProductionRule("boolean factor", "AND!", "=boolean primary"),
+                new ProductionRule("boolean term", "AND=boolean primary", "AND=boolean factor*"),
+                new ProductionRule("search factor", "OR!", "=boolean term"),
                 new ProductionRule("search condition", "=boolean term", "=search factor*"),
                 new ProductionRule("where filter", "OR=search condition")
+
             };
 
             var visitor = new Visitor();
@@ -74,7 +92,28 @@ namespace Parser
                         node.Accept(v);
                     }
 
-                    v.State.Sql = string.Format(" ({0}) ", string.Join(" OR ", visitor.State.Predicates));
+                    v.State.Sql = string.Format("({0})", string.Join(" OR ", visitor.State.Predicates));
+                }
+            );
+
+            visitor.AddVisitor(
+                "boolean primary",
+                (v, n) =>
+                {
+                    List<string> items = new List<string>();
+                    foreach (var item in (IEnumerable<Object>)n.Properties["CONDITION"])
+                    {
+                        var node = item as Node;
+                        if (node == null)
+                            throw new Exception("Array element type not Node.");
+                        node.Accept(v);
+                    }
+                    foreach (var item in (IEnumerable<Object>)n.Properties["CONDITION"])
+                    {
+                        items.Add(v.State.Predicates.Pop());
+                    }
+                    var sql = string.Format("({0})", string.Join("XXX", items.ToArray()));
+                    v.State.Predicates.Push(sql);
                 }
             );
 
@@ -95,7 +134,7 @@ namespace Parser
                     {
                         items.Add(v.State.Predicates.Pop());
                     }
-                    var sql = string.Format(" ({0}) ", string.Join(" AND ", items.ToArray()));
+                    var sql = string.Format("({0})", string.Join(" AND ", items.ToArray()));
                     v.State.Predicates.Push(sql);
                 }
             );
@@ -153,21 +192,104 @@ namespace Parser
                 }
             );
 
+            visitor.AddVisitor(
+                "between predicate",
+                (v, n) =>
+                {
+                    var i = v.State.Parameters.Count;
+                    var sql = string.Format(
+                        "{0} {1} @{2} AND @{3}",
+                        ((Token)n.Properties["LHV"]).TokenValue,
+                        n.Properties.ContainsKey("NOT") ? "NOT BETWEEN" : "BETWEEN",
+                        "P" + i,
+                        "P" + (i+1)
+                    );
+                    v.State.Predicates.Push(sql);
+                    v.State.Parameters.Add(new SqlParameter()
+                    {
+                        ParameterName = "P" + i,
+                        Value = ((Token)n.Properties["OP1"]).TokenValue
+                    });
+                    v.State.Parameters.Add(new SqlParameter()
+                    {
+                        ParameterName = "P" + i++,
+                        Value = ((Token)n.Properties["OP1"]).TokenValue
+                    });
+                }
+            );
+
+            visitor.AddVisitor(
+                "contains predicate",
+                (v, n) =>
+                {
+                    var i = v.State.Parameters.Count;
+                    var sql = string.Format(
+                        "{0} {1} @{2}",
+                        ((Token)n.Properties["LHV"]).TokenValue,
+                        n.Properties.ContainsKey("NOT") ? "NOT LIKE" : "LIKE",
+                        "P" + i
+                    );
+                    v.State.Predicates.Push(sql);
+                    v.State.Parameters.Add(new SqlParameter()
+                    {
+                        ParameterName = "P" + i,
+                        Value = ((Token)n.Properties["RHV"]).TokenValue
+                    });
+                }
+            );
+
+            visitor.AddVisitor(
+                "blank predicate",
+                (v, n) =>
+                {
+                    var i = v.State.Parameters.Count;
+                    var sql = string.Format(
+                        "{0} {1}",
+                        ((Token)n.Properties["LHV"]).TokenValue,
+                        n.Properties.ContainsKey("NOT") ? "IS NOT NULL" : "IS NULL"
+                    );
+                    v.State.Predicates.Push(sql);
+                }
+            );
+
             // Success
+            TestSuccess(grammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "where filter", visitor);
             TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
             TestSuccess(grammar, "MY_LIST IN ('abc')", "where filter", visitor);
             TestSuccess(grammar, null, "where filter");
             TestSuccess(grammar, "", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ 123", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter");
-            TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter");
+            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter", visitor);
+            TestSuccess(grammar, "FIELD_1 EQ 123", "where filter", visitor);
+            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter", visitor);
+            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter", visitor);
+            TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter", visitor);
             TestSuccess(grammar, "MY_LIST IN ('abc','mno','xyz')", "where filter", visitor);
             // Using an identifier starting with same characters as another token ('LE')
-            TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter");
-            TestSuccess(grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "where filter");
+            TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "where filter", visitor);
             TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
+
+            // BETWEEN / NOT  BETWEEN
+            TestSuccess(grammar, "LEVEL_1 BETWEEN '123' AND '456'", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "where filter", visitor);
+
+            // CONTAINS / NOT CONTAINS
+            TestSuccess(grammar, "LEVEL_1 CONTAINS 'HELLO'", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "where filter", visitor);
+
+            // ISBLANK / ISNOTBLANK
+            TestSuccess(grammar, "LEVEL_1 ISBLANK", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT ISBLANK", "where filter", visitor);
+            TestSuccess(grammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "where filter", visitor);
+
+            // Parens
+            TestSuccess(grammar, "(LEVEL_1 ISBLANK)", "where filter", visitor);
+
+            TestSuccess(grammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "where filter", visitor);
+            TestSuccess(grammar, "FIELD_A EQ '123' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "where filter", visitor);
+
             // Failure
             TestFailure(grammar, "FIELD", "comparison predicate");
             TestFailure(grammar, "FIELD GT 123 AND", "comparison predicate");
@@ -187,7 +309,8 @@ namespace Parser
 
         public static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule, Visitor visitors = null)
         {
-            Console.WriteLine(string.Format("TEST SUCCESS: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule));
+            TestNumber++;
+            Console.WriteLine(string.Format("[{3}] TEST SUCCESS: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule, TestNumber));
             try
             {
                 var parser = new Parser(grammar);
@@ -222,7 +345,8 @@ namespace Parser
 
         public static void TestFailure(List<ProductionRule> grammar, string input, string productionRule)
         {
-            Console.WriteLine(string.Format("TEST FAILURE: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule));
+            TestNumber++;
+            Console.WriteLine(string.Format("[{3}] TEST FAILURE: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule, TestNumber));
             try
             {
                 var parser = new Parser(grammar);
