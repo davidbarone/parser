@@ -15,8 +15,11 @@ namespace Parser
 
         static void Main(string[] args)
         {
-            List<ProductionRule> grammar = new List<ProductionRule>()
-            {
+            DoTests();
+        }
+
+        private static List<ProductionRule> Grammar => new List<ProductionRule>()
+        {
                 new ProductionRule("AND", @"\bAND\b"),
                 new ProductionRule("OR", @"\bOR\b"),
                 new ProductionRule("EQ_OP", @"\bEQ\b"),
@@ -63,26 +66,89 @@ namespace Parser
                 new ProductionRule("predicate", "=contains predicate"),
                 new ProductionRule("predicate", "=blank predicate"),
 
-                new ProductionRule("boolean primary", "LEFT_PAREN!", "CONDITION=where filter", "RIGHT_PAREN!"),
                 new ProductionRule("boolean primary", "=predicate"),
+                new ProductionRule("boolean primary", "LEFT_PAREN!", "CONDITION=search condition", "RIGHT_PAREN!"),
 
                 new ProductionRule("boolean factor", "AND!", "=boolean primary"),
                 new ProductionRule("boolean term", "AND=boolean primary", "AND=boolean factor*"),
+
                 new ProductionRule("search factor", "OR!", "=boolean term"),
-                new ProductionRule("search condition", "=boolean term", "=search factor*"),
-                new ProductionRule("where filter", "OR=search condition")
+                new ProductionRule("search condition", "OR=boolean term", "OR=search factor*"),
+        };
 
-            };
+        private static void DoTests()
+        {
+            // Success
+            TestSuccess(Grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search condition", Visitor);
+            TestSuccess(Grammar, "MY_LIST IN ('abc')", "search condition", Visitor);
+            TestSuccess(Grammar, null, "search condition");
+            TestSuccess(Grammar, "", "search condition");
+            TestSuccess(Grammar, "FIELD_1 EQ '123'", "search condition", Visitor);
+            TestSuccess(Grammar, "FIELD_1 EQ 123", "search condition", Visitor);
+            TestSuccess(Grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "search condition", Visitor);
+            TestSuccess(Grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "search condition", Visitor);
+            TestSuccess(Grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "search condition", Visitor);
+            TestSuccess(Grammar, "MY_LIST IN ('abc','mno','xyz')", "search condition", Visitor);
 
-            var visitor = new Visitor();
+            // Using an identifier starting with same characters as another token ('LE')
+            TestSuccess(Grammar, "LEVEL_1 LE '123'", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search condition", Visitor);
+
+            // BETWEEN / NOT  BETWEEN
+            TestSuccess(Grammar, "LEVEL_1 BETWEEN '123' AND '456'", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "search condition", Visitor);
+
+            // CONTAINS / NOT CONTAINS
+            TestSuccess(Grammar, "LEVEL_1 CONTAINS 'HELLO'", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "search condition", Visitor);
+
+            // ISBLANK / ISNOTBLANK
+            TestSuccess(Grammar, "LEVEL_1 ISBLANK", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT ISBLANK", "search condition", Visitor);
+            TestSuccess(Grammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "search condition", Visitor);
+
+            // Parens
+            TestSuccess(Grammar, "(LEVEL_1 ISBLANK)", "search condition", Visitor);
+            TestSuccess(Grammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "search condition", Visitor);
+            TestSuccess(Grammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "search condition", Visitor);
+            TestSuccess(Grammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "search condition", Visitor);
+
+            // Failure
+            TestFailure(Grammar, "FIELD", "comparison predicate");
+            TestFailure(Grammar, "FIELD GT 123 AND", "comparison predicate");
+            TestFailure(Grammar, "FIELD", "search condition");
+            TestFailure(Grammar, "FIELD GT 123 AND", "search condition");
+
+            Console.WriteLine("Press a key to continue.");
+            Console.ReadKey();
+            // Testing execution of AST.
+            /*
+            var result = parser.Execute(ast, visitor, (state) => new {
+                Sql = state.Sql,
+                Parameters = state.Parameters
+            });
+            */
+        }
+
+        private static Visitor Visitor => GetVisitor();
+
+        private static Visitor GetVisitor()
+        {
+            // Initial state
+            dynamic state = new ExpandoObject();
+            state.Parameters = new List<SqlParameter>();
+            state.Predicates = new Stack<string>();
+            state.Sql = string.Empty;
+
+            var visitor = new Visitor(state);
+
             visitor.AddVisitor(
-                "where filter",
+                "search condition",
                 (v, n) =>
                 {
-                    // Set up state
-                    v.State.Parameters = new List<SqlParameter>();
-                    v.State.Predicates = new Stack<string>();
-
                     dynamic searchCondition = n.Properties["OR"];
                     foreach (var item in (IEnumerable<Object>)searchCondition)
                     {
@@ -92,28 +158,14 @@ namespace Parser
                         node.Accept(v);
                     }
 
-                    v.State.Sql = string.Format("({0})", string.Join(" OR ", visitor.State.Predicates));
-                }
-            );
-
-            visitor.AddVisitor(
-                "boolean primary",
-                (v, n) =>
-                {
                     List<string> items = new List<string>();
-                    foreach (var item in (IEnumerable<Object>)n.Properties["CONDITION"])
-                    {
-                        var node = item as Node;
-                        if (node == null)
-                            throw new Exception("Array element type not Node.");
-                        node.Accept(v);
-                    }
-                    foreach (var item in (IEnumerable<Object>)n.Properties["CONDITION"])
+                    foreach (var item in (IEnumerable<Object>)n.Properties["OR"])
                     {
                         items.Add(v.State.Predicates.Pop());
                     }
-                    var sql = string.Format("({0})", string.Join("XXX", items.ToArray()));
+                    var sql = string.Format("{0}", string.Join(" OR ", items.ToArray()));
                     v.State.Predicates.Push(sql);
+                    v.State.Sql = string.Format("{0}", string.Join(" OR ", visitor.State.Predicates));
                 }
             );
 
@@ -134,8 +186,28 @@ namespace Parser
                     {
                         items.Add(v.State.Predicates.Pop());
                     }
-                    var sql = string.Format("({0})", string.Join(" AND ", items.ToArray()));
+                    var sql = string.Format("{0}", string.Join(" AND ", items.ToArray()));
                     v.State.Predicates.Push(sql);
+                }
+            );
+
+            visitor.AddVisitor(
+                "boolean primary",
+                (v, n) =>
+                {
+                    // If CONDITION property present, then need to wrap () around condition.
+                    if (n.Properties.ContainsKey("CONDITION"))
+                    {
+                        var node = n.Properties["CONDITION"] as Node;
+                        if (node == null)
+                            throw new Exception("Array element type not Node.");
+
+                        node.Accept(v);
+
+                        var predicates = ((Stack<string>)v.State.Predicates).Pop();
+                        var sql = string.Format("({0})", predicates);
+                        v.State.Predicates.Push(sql);
+                    }
                 }
             );
 
@@ -202,7 +274,7 @@ namespace Parser
                         ((Token)n.Properties["LHV"]).TokenValue,
                         n.Properties.ContainsKey("NOT") ? "NOT BETWEEN" : "BETWEEN",
                         "P" + i,
-                        "P" + (i+1)
+                        "P" + (i + 1)
                     );
                     v.State.Predicates.Push(sql);
                     v.State.Parameters.Add(new SqlParameter()
@@ -252,62 +324,10 @@ namespace Parser
                 }
             );
 
-            // Success
-            TestSuccess(grammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
-            TestSuccess(grammar, "MY_LIST IN ('abc')", "where filter", visitor);
-            TestSuccess(grammar, null, "where filter");
-            TestSuccess(grammar, "", "where filter");
-            TestSuccess(grammar, "FIELD_1 EQ '123'", "where filter", visitor);
-            TestSuccess(grammar, "FIELD_1 EQ 123", "where filter", visitor);
-            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "where filter", visitor);
-            TestSuccess(grammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "where filter", visitor);
-            TestSuccess(grammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "where filter", visitor);
-            TestSuccess(grammar, "MY_LIST IN ('abc','mno','xyz')", "where filter", visitor);
-            // Using an identifier starting with same characters as another token ('LE')
-            TestSuccess(grammar, "LEVEL_1 LE '123'", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "where filter", visitor);
-
-            // BETWEEN / NOT  BETWEEN
-            TestSuccess(grammar, "LEVEL_1 BETWEEN '123' AND '456'", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "where filter", visitor);
-
-            // CONTAINS / NOT CONTAINS
-            TestSuccess(grammar, "LEVEL_1 CONTAINS 'HELLO'", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "where filter", visitor);
-
-            // ISBLANK / ISNOTBLANK
-            TestSuccess(grammar, "LEVEL_1 ISBLANK", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT ISBLANK", "where filter", visitor);
-            TestSuccess(grammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "where filter", visitor);
-
-            // Parens
-            TestSuccess(grammar, "(LEVEL_1 ISBLANK)", "where filter", visitor);
-
-            TestSuccess(grammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "where filter", visitor);
-            TestSuccess(grammar, "FIELD_A EQ '123' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "where filter", visitor);
-
-            // Failure
-            TestFailure(grammar, "FIELD", "comparison predicate");
-            TestFailure(grammar, "FIELD GT 123 AND", "comparison predicate");
-            TestFailure(grammar, "FIELD", "where filter");
-            TestFailure(grammar, "FIELD GT 123 AND", "where filter");
-
-            Console.WriteLine("Press a key to continue.");
-            Console.ReadKey();
-            // Testing execution of AST.
-            /*
-            var result = parser.Execute(ast, visitor, (state) => new {
-                Sql = state.Sql,
-                Parameters = state.Parameters
-            });
-            */
+            return visitor;
         }
 
-        public static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule, Visitor visitors = null)
+        private static void TestSuccess(List<ProductionRule> grammar, string input, string productionRule, Visitor visitors = null)
         {
             TestNumber++;
             Console.WriteLine(string.Format("[{3}] TEST SUCCESS: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule, TestNumber));
@@ -343,7 +363,7 @@ namespace Parser
             }
         }
 
-        public static void TestFailure(List<ProductionRule> grammar, string input, string productionRule)
+        private static void TestFailure(List<ProductionRule> grammar, string input, string productionRule)
         {
             TestNumber++;
             Console.WriteLine(string.Format("[{3}] TEST FAILURE: Production rules: {0}, Input: [{1}], Start [{2}]", grammar.Count(), input, productionRule, TestNumber));
