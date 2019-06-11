@@ -11,6 +11,11 @@ namespace Parser
     /// </summary>
     public class Node
     {
+        public Node(string name)
+        {
+            this.Name = name;
+        }
+
         /// <summary>
         /// Name of the node is the production rule or token name it matches
         /// </summary>

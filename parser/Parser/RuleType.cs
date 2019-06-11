@@ -7,8 +7,7 @@ using System.Threading.Tasks;
 namespace Parser
 {
     /// <summary>
-    /// Specifies the type of rule. Rules either represent terminal nodes (lexer rules)
-    /// or non-terminal nodes (parser rules).
+    /// Defines the type of production rule.
     /// </summary>
     public enum RuleType
     {

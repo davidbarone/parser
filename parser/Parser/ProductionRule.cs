@@ -11,14 +11,44 @@ namespace Parser
     /// </summary>
     public class ProductionRule
     {
+        public bool Debug { get; set; }
+
+        public bool IsEnumeratedSymbol(string alias)
+        {
+            var isList = false;
+            var found = false;
+
+            var symbols = Symbols.Where(s => s.Alias == alias);
+
+            if (symbols.Count() >= 1)
+            {
+                found = true;
+                if (symbols.Count() > 1)
+                    isList = true;
+                else
+                {
+                    var symbol = symbols.First();
+                    if (symbol.Many)
+                        isList = true;
+                }
+            }
+
+            if (!found)
+            {
+                throw new Exception($"Symbol {alias} does not exist in production rule {this.Name}.");
+            }
+
+            return isList;
+        }
+
         public ProductionRule(string name, params string[] symbols)
         {
             this.Name = name;
             this.Symbols = new List<Symbol>();
-            foreach (var symbol in symbols)
-            {
-                this.Symbols.Add(new Symbol(symbol, this.RuleType));
-            }
+            symbols.ToList().ForEach(s => {
+                var symbol = new Symbol(s, this.RuleType);
+                this.Symbols.Add(symbol);
+            });
         }
 
         /// <summary>
@@ -26,6 +56,10 @@ namespace Parser
         /// </summary>
         public string Name { get; set; }
 
+        /// <summary>
+        /// Rule Type. If the first character of the rule is upper case, it is defined
+        /// as a lexer rule. Otherwise, it is a parser rule.
+        /// </summary>
         public RuleType RuleType
         {
             get
@@ -43,50 +77,121 @@ namespace Parser
         public List<Symbol> Symbols { get; set; }
 
         /// <summary>
+        /// Goes through all symbols in production rule, creating the appropriate
+        /// result object:
+        /// 1. if all symbols have aliases, create a node object
+        /// 1.1 If any symbols are in a list, create IEnumerable property
+        /// 2. if all symbols have no aliases, and single, create Object
+        /// 2.1 if all symbols have no aliass, and multiple, create IEnumerable of Object.
+        /// </summary>
+        /// <param name="context"></param>
+        private object GetResultObject()
+        {
+            bool hasBlankAlias = false;
+            bool hasNonBlankAlias = false;
+            object ret = null;
+
+            // Get all the aliases
+            foreach (var alias in this.Symbols.Select(s => s.Alias).Distinct())
+            {
+                if (!string.IsNullOrEmpty(alias))
+                {
+                    hasNonBlankAlias = true;
+
+                    if (ret == null)
+                        ret = new Node(this.Name);
+
+                    if (IsEnumeratedSymbol(alias))
+                    {
+                        Node retAsNode = ret as Node;
+                        retAsNode.Properties[alias] = new List<object>();
+                    }
+                }
+                else
+                {
+                    hasNonBlankAlias = false;
+                    if (IsEnumeratedSymbol(alias))
+                    {
+                        ret = new List<object>();
+                    }
+                }
+            }
+            if (hasNonBlankAlias && hasBlankAlias)
+                throw new Exception("Cannot mix blank and non-blank aliases.");
+
+            return ret;
+        }
+
+        /// <summary>
         /// Parses a set of tokens into an abstract syntax tree.
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public bool Parse(ParserContext context)
+        public bool Parse(ParserContext context, out object obj)
         {
+            foreach (var symbol in this.Symbols)
+            {
+                symbol.Debug = this.Debug;
+            }
+
+            context.CurrentProductionRule.Push(this);
+            context.PushResult(GetResultObject());
+            var temp = context.CurrentTokenIndex;
+
+            bool success = true;
+
+            if (Debug)
+            {
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"-----------------------------------------------------------");
+                Console.WriteLine($"[ProductionRule.Parse()] {this.Name} - Pushing new result to stack.");
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+
             // Rule is non terminal
             foreach (var symbol in this.Symbols)
             {
-                context.ConvertResultToIEnumerable(symbol.Alias);
-                var once = false;
-                while (true)
-                {
-                    if ((symbol.Optional || once) && context.TokenEOF)
-                        break;
-                    else if (context.TokenEOF)
-                        throw new Exception("Unexpected EOF");
+                if (symbol.Optional && context.TokenEOF)
+                    break;
+                else if (context.TokenEOF)
+                    throw new Exception("Unexpected EOF");
 
-                    context.PushResult(null);
-                    var ok = symbol.Parse(context);
-                    var result = context.PopResult();
-                    if (ok)
-                    {
-                        context.UpdateResult(result, symbol.Alias, this.Name);
-                        once = true;
-                    }
-                    else if (once && symbol.Many)
-                    {
-                        // have had at least 1 success, with 'many' symbol. Still quit with success
-                        break;
-                    }
-                    else if (symbol.Optional)
-                        break;
-                    else
-                    {
-                        // General case if ok = false
-                        return false;
-                    }
-                    if (!symbol.Many)
-                        break;
+                var ok = symbol.Parse(context);
+
+                if (symbol.Optional || ok) { }
+                else
+                {
+                    // General case if ok = false
+                    success = false;
+                    break;
                 }
             }
-            // if got here, then success
-            return true;
+
+            obj = context.PopResult();
+            context.CurrentProductionRule.Pop();
+
+            if (success)
+            {
+                if (Debug)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                    Console.WriteLine($"[ProductionRule.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                return true;
+            }
+            else
+            {
+                if (Debug)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine($"[ProductionRule.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                context.CurrentTokenIndex = temp;
+                obj = null;
+                return false;
+            }
         }
     }
 }

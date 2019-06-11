@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Parser
 {
     /// <summary>
-    /// A terminal token within the input.
+    /// A terminal token within the input. The lexer converts string input into an array of lexed tokens.
     /// </summary>
     public class Token
     {
@@ -15,7 +15,8 @@ namespace Parser
         /// Describes the token.
         /// </summary>
         public string TokenName { get; set; }
-        /// <summary>TOke
+
+        /// <summary>TokenValue
         /// The actual value of the token.
         /// </summary>
         public string TokenValue { get; set; }
