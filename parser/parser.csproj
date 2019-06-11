@@ -42,7 +42,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Parser.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="Parser\MatchResult.cs" />
+    <Compile Include="Parser\Node.cs" />
+    <Compile Include="Parser\Parser.cs" />
+    <Compile Include="Parser\ParserContext.cs" />
+    <Compile Include="Parser\ProductionRule.cs" />
+    <Compile Include="Parser\RuleType.cs" />
+    <Compile Include="Parser\Symbol.cs" />
+    <Compile Include="Parser\Token.cs" />
+    <Compile Include="Parser\Visitor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
