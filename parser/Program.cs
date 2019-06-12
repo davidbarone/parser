@@ -23,9 +23,8 @@ namespace Parser
 
         static void DoBNFTests()
         {
-            DoBNFTest("Parser Rule 1", @"myrule=SIMPLE,ANOTHER;");
-
             DoBNFTest("Parser with alternates", @"myrule=SIMPLE,ANOTHER | SIMPLE;");
+
             DoBNFTest("null test", null, true);
             DoBNFTest("empty string", "", true);
             DoBNFTest("space", " ", true);
@@ -48,6 +47,9 @@ SIMPLE=""X"";
 ANOTHER=""Y"";
 rule=SIMPLE;
 ");
+            DoBNFTest("Parser Rule 1", @"myrule=SIMPLE,ANOTHER;");
+            
+
         }
 
         static void DoBNFTest(string name, string grammar, bool expectFail = false, int? expectedRules = null)
@@ -58,7 +60,7 @@ rule=SIMPLE;
             try
             {
                 var parser = new Parser(grammar);
-                parser.Debug = true;
+                parser.Debug = false;
                 var rules = parser.ProductionRules;
                 if (expectFail)
                 {

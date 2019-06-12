@@ -59,6 +59,9 @@ namespace Parser
 
         private List<string> IgnoreTokens { get; set; }
 
+        /// <summary>
+        /// Production rules to describe the parser grammar syntax.
+        /// </summary>
         private List<ProductionRule> BNFGrammar => new List<ProductionRule>
         {
             // Lexer Rules
@@ -74,9 +77,9 @@ namespace Parser
             // Parser Rules
             new ProductionRule("parserSymbolTerm", ":IDENTIFIER"),
             new ProductionRule("parserSymbolFactor", "COMMA!", ":IDENTIFIER"),
-            new ProductionRule("parserSymbolExpr", ":parserSymbolTerm", ":parserSymbolFactor*"),
+            new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
             new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
-            new ProductionRule("parserSymbolsExpr", ":parserSymbolExpr", ":parserSymbolsFactor*"),
+            new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
 
             new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:QUOTEDLITERAL", "SEMICOLON!"),      // Lexer rule
             new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:parserSymbolsExpr", "SEMICOLON!"),  // Parser rule
@@ -90,7 +93,7 @@ namespace Parser
                 // Initial state
                 dynamic state = new ExpandoObject();
                 state.ProductionRules = new List<ProductionRule>();
-
+                state.CurrentRule = "";
                 var visitor = new Visitor(state);
 
                 visitor.AddVisitor(
@@ -107,23 +110,55 @@ namespace Parser
                     "rule",
                     (v, n) =>
                     {
-                        if (n.Properties.ContainsKey("QUOTEDLITERAL"))
+                        var rule = ((Token)n.Properties["RULE"]).TokenValue;
+                        var expansion = ((object)n.Properties["EXPANSION"]);
+                        var expansionAsToken = expansion as Token;
+
+                        // for lexer rules (terminal nodes), the expansion is a single token
+                        // for lexer rules (non terminal nodes), the expansion is a set of identifiers
+                        if (expansionAsToken != null)
                         {
-                            // Terminal (Lexer) rule
-                            ProductionRule rule = new ProductionRule(
-                                ((Token)n.Properties["IDENTIFIER"]).TokenValue,
-                                ((Token)n.Properties["QUOTEDLITERAL"]).TokenValue
+                            // Lexer Rule
+                            ProductionRule pr = new ProductionRule(
+                                rule,
+                                expansionAsToken.TokenValue
                             );
-                            v.State.ProductionRules.Add(rule);
+                            v.State.ProductionRules.Add(pr);
                         }
                         else
                         {
-                            // Non-terminal rule
-                            ProductionRule rule = new ProductionRule(
-                                ((Token)n.Properties["IDENTIFIER"]).TokenValue,
-                                ((Token)n.Properties["QUOTEDLITERAL"]).TokenValue
-                            );
+                            v.State.CurrentRule = rule;
+                            var expansionNode = expansion as Node;
+                            expansionNode.Accept(v);
                         }
+                    });
+
+                visitor.AddVisitor(
+                    "parserSymbolsExpr",
+                    (v, n) =>
+                    {
+                        // each alternate contains a separate list of tokens.
+                        foreach (var node in ((IEnumerable<Object>)n.Properties["ALTERNATE"]))
+                        {
+                            ((Node)node).Accept(v);
+                        }
+                    });
+
+                visitor.AddVisitor(
+                    "parserSymbolExpr",
+                    (v, n) =>
+                    {
+                        List<string> tokens = new List<string>();
+                        foreach (var symbol in ((IEnumerable<object>)n.Properties["SYMBOL"]))
+                        {
+                            tokens.Add(((Token)symbol).TokenValue);
+                        }
+
+                        ProductionRule pr = new ProductionRule(
+                            v.State.CurrentRule,
+                            tokens.ToArray()
+                        );
+                        v.State.ProductionRules.Add(pr);
                     });
 
                 return visitor;
