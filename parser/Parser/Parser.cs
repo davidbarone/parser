@@ -68,15 +68,19 @@ namespace Parser
             new ProductionRule("COMMENT", @"\(\*.*\*\)"), // (*...*)
             new ProductionRule("EQ", "="),                  // definition
             new ProductionRule("COMMA", "[,]"),               // concatenation
+            new ProductionRule("COLON", "[:]"),               // rewrite / aliasing
             new ProductionRule("SEMICOLON", ";"),           // termination
+            new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
             new ProductionRule("OR", @"[|]"),                 // alternation
             new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
             new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_]+"),
             new ProductionRule("NEWLINE", "\n"),
 
             // Parser Rules
-            new ProductionRule("parserSymbolTerm", ":IDENTIFIER"),
-            new ProductionRule("parserSymbolFactor", "COMMA!", ":IDENTIFIER"),
+            new ProductionRule("alias", ":IDENTIFIER?", ":COLON"),
+            new ProductionRule("symbol", "ALIAS:alias?", "IDENTIFIER:IDENTIFIER", "MODIFIER:MODIFIER?"),
+            new ProductionRule("parserSymbolTerm", ":symbol"),
+            new ProductionRule("parserSymbolFactor", "COMMA!", ":symbol"),
             new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
             new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
             new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
@@ -151,7 +155,18 @@ namespace Parser
                         List<string> tokens = new List<string>();
                         foreach (var symbol in ((IEnumerable<object>)n.Properties["SYMBOL"]))
                         {
-                            tokens.Add(((Token)symbol).TokenValue);
+                            var node = symbol as Node;
+                            // Unpack components
+                            var aliasList = node.Properties.ContainsKey("ALIAS") ? node.Properties["ALIAS"] as IEnumerable<object> : null;
+                            var identifier = ((Token)node.Properties["IDENTIFIER"]).TokenValue;
+                            var modifierToken = node.Properties.ContainsKey("MODIFIER") ? node.Properties["MODIFIER"] as Token : null;
+                            var alias = "";
+                            if (aliasList != null)
+                            {
+                                alias = string.Join("", aliasList.Select(a => ((Token)a).TokenValue));
+                            }
+                            var modifier = (modifierToken != null) ? modifierToken.TokenValue : "";
+                            tokens.Add($"{alias}{identifier}{modifier}");
                         }
 
                         ProductionRule pr = new ProductionRule(

@@ -23,7 +23,7 @@ namespace Parser
 
         static void DoBNFTests()
         {
-            DoBNFTest("Parser with alternates", @"myrule=SIMPLE,ANOTHER | SIMPLE;");
+            DoBNFTest("Parser with alternates", @"myrule    =   SIMPLE, ANOTHER | SIMPLE;");
 
             DoBNFTest("null test", null, true);
             DoBNFTest("empty string", "", true);
@@ -36,7 +36,10 @@ namespace Parser
             DoBNFTest("Single Rule", @"SIMPLE=""X"";", false);
             DoBNFTest("Two Rules", @"SIMPLE=""X"";ANOTHER=""Y"";", false);
             DoBNFTest("Multi Line", @"
-SIMPLE=""X"";
+
+(* This is a test *)
+
+SIMPLE  =   ""X"";
 ANOTHER=""Y"";", false);
             DoBNFTest("Comments", @"
 SIMPLE=""X""; (* This is a comment *)
@@ -48,8 +51,9 @@ ANOTHER=""Y"";
 rule=SIMPLE;
 ");
             DoBNFTest("Parser Rule 1", @"myrule=SIMPLE,ANOTHER;");
-            
+            DoBNFTest("Parser Rule with alias and modifier", @"myrule   =   TEST:SIMPLE*;");
 
+            DoBNFTest("Sqlish Grammar", GrammarText);
         }
 
         static void DoBNFTest(string name, string grammar, bool expectFail = false, int? expectedRules = null)
@@ -70,7 +74,7 @@ rule=SIMPLE;
                 } else
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(string.Format("Success: This grammar passed parsing."));
+                    Console.WriteLine(string.Format($"Success: This grammar passed parsing. {rules.Count()} rules parsed."));
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
             }
@@ -90,6 +94,49 @@ rule=SIMPLE;
                 }
             }
         }
+
+        private static string GrammarText => @"
+
+(* Lexer Rules *)
+
+AND             = ""\bAND\b"";
+OR              = ""\bOR\b"";
+EQ_OP           = ""\bEQ\b"";
+NE_OP           = ""\bNE\b"";
+LT_OP           = ""\bLT\b"";
+LE_OP           = ""\bLE\b"";
+GT_OP           = ""\bGT\b"";
+GE_OP           = ""\bGE\b"";
+LEFT_PAREN      = ""[(]"";
+RIGHT_PAREN     = ""[)]"";
+COMMA           = "","";
+IN              = ""\b(IN)\b"";
+CONTAINS        = ""\bCONTAINS\b"";
+BETWEEN         = ""\bBETWEEN\b"";
+ISBLANK         = ""\bISBLANK\b"";
+NOT             = ""\bNOT\b"";
+LITERAL_STRING  = ""['][^']*[']"";
+LITERAL_NUMBER  = ""[+-]?((\d+(\.\d*)?)|(\.\d+))"";
+IDENTIFIER      = ""[A-Z_][A-Z_0-9]*"";
+WHITESPACE      = ""\s+"";
+
+(*Parser Rules *)
+
+comparison_operator =   :EQ_OP | :NE_OP | :LT_OP | :LE_OP | :GT_OP | :GE_OP;
+comparison_operand  =   :LITERAL_STRING | :LITERAL_NUMBER | :IDENTIFIER;
+comparison_predicate=   LHV:comparison_operand, OPERATOR:comparison_operator, RHV:comparison_operand;
+in_factor           =   COMMA!, :comparison_operand;
+in_predicate        =   LHV:comparison_operand, NOT:NOT?, IN!, LEFT_PAREN!, RHV:comparison_operand, RHV:in_factor*, RIGHT_PAREN!;
+between_predicate   =   LHV:comparison_operand, NOT:NOT?, BETWEEN!, OP1:comparison_operand, AND!, OP2:comparison_operand;
+contains_predicate  =   LHV:comparison_operand, NOT:NOT?, CONTAINS!, RHV:comparison_operand;
+blank_predicate     =   LHV:comparison_operand, NOT:NOT?, ISBLANK;
+predicate           =   :comparison_predicate | :in_predicate | :between_predicate | :contains_predicate | :blank_predicate;
+boolean_primary     =   :predicate;
+boolean_primary     =   LEFT_PAREN!, CONDITION:search_condition, RIGHT_PAREN!;
+boolean_factor      =   AND!, :boolean_primary;
+boolean_term        =   AND:boolean_primary, AND:boolean_factor*;
+search_factor       =   OR!, :boolean_term;
+search_condition    =   OR:boolean_term, OR:search_factor*;";
 
         private static List<ProductionRule> Grammar => new List<ProductionRule>()
         {
