@@ -16,7 +16,7 @@ namespace Parser
         /// </summary>
         public string TokenName { get; set; }
 
-        /// <summary>TokenValue
+        /// <summary>
         /// The actual value of the token.
         /// </summary>
         public string TokenValue { get; set; }

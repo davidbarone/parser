@@ -9,58 +9,18 @@ using System.Threading.Tasks;
 namespace Parser
 {
     /// <summary>
-    /// Class which encapsulates a number of parsing functions to parse context-free grammars.
+    /// Parser class which encapsulates a number of parsing functions to parse context-free grammars.
     /// </summary>
     public class Parser
     {
-        public bool Debug { get; set; }
-        /// <summary>
-        /// Can describe the production rules as EBNF grammar
-        /// </summary>
         private string Grammar { get; set; }
-
-        /// <summary>
-        /// Or can describe the rules directly.
-        /// </summary>
         private IList<ProductionRule> productionRules { get; set; }
-
-        /// <summary>
-        /// Gets the production rules either directly, or by evaluating the EBNF grammar.
-        /// </summary>
-        public IList<ProductionRule> ProductionRules
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(this.Grammar) && this.productionRules == null)
-                {
-                    throw new Exception("grammar specification is empty.");
-                }
-
-                else if (!string.IsNullOrEmpty(this.Grammar))
-                {
-                    Parser parser = new Parser(this.BNFGrammar, "COMMENT", "NEWLINE");
-                    parser.Debug = this.Debug;
-                    var tokens = parser.Tokenise(this.Grammar);
-                    var ast = parser.Parse(this.Grammar, "grammar");
-                    return (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d)=>d.ProductionRules);
-                }
-                else
-                {
-                    List<ProductionRule> rules = new List<ProductionRule>();
-                    foreach (var pr in this.productionRules)
-                    {
-                        pr.Debug = this.Debug;
-                        rules.Add(pr);
-                    }
-                    return rules;
-                }
-            }
-        }
-
         private List<string> IgnoreTokens { get; set; }
 
+        #region BNF-ish Grammar + Visitor
+
         /// <summary>
-        /// Production rules to describe the parser grammar syntax.
+        /// Production rules to describe the BNF-ish syntax.
         /// </summary>
         private List<ProductionRule> BNFGrammar => new List<ProductionRule>
         {
@@ -90,6 +50,9 @@ namespace Parser
             new ProductionRule("grammar", "RULES:rule+")
         };
 
+        /// <summary>
+        /// Visitor to process the BNF-ish tree.
+        /// </summary>
         private Visitor BNFVisitor
         {
             get
@@ -187,6 +150,15 @@ namespace Parser
             }
         }
 
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Creates a new Parser object using a list of production rules.
+        /// </summary>
+        /// <param name="grammar">The list of production rules defining the grammar.</param>
+        /// <param name="ignoreTokens">An optional list of token names to exclude from the tokeniser and parser.</param>
         public Parser(IList<ProductionRule> grammar, params string[] ignoreTokens)
         {
             this.productionRules = grammar;
@@ -197,6 +169,11 @@ namespace Parser
             }
         }
 
+        /// <summary>
+        /// Creates a new Parser object using BNF-ish grammar.
+        /// </summary>
+        /// <param name="grammar">The BNF-ish grammar.</param>
+        /// <param name="ignoreTokens">An optional list of token names to exclude from the tokeniser and parser.</param>
         public Parser(string grammar, params string[] ignoreTokens)
         {
             this.Grammar = grammar;
@@ -207,15 +184,55 @@ namespace Parser
             }
         }
 
+        #endregion
+
+        #region Public Properties / Methods
 
         /// <summary>
-        /// Takes a string as input, and outputs a set of tokens according to the specified grammar.
+        /// WHen set to true, provides additional debugging information.
+        /// </summary>
+        public bool Debug { get; set; }
+        
+        /// <summary>
+        /// Returns the production rules list.
+        /// </summary>
+        public IList<ProductionRule> ProductionRules
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(this.Grammar) && this.productionRules == null)
+                {
+                    throw new Exception("grammar specification is empty.");
+                }
+
+                else if (!string.IsNullOrEmpty(this.Grammar))
+                {
+                    Parser parser = new Parser(this.BNFGrammar, "COMMENT", "NEWLINE");
+                    parser.Debug = this.Debug;
+                    var tokens = parser.Tokenise(this.Grammar);
+                    var ast = parser.Parse(this.Grammar, "grammar");
+                    return (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d)=>d.ProductionRules);
+                }
+                else
+                {
+                    List<ProductionRule> rules = new List<ProductionRule>();
+                    foreach (var pr in this.productionRules)
+                    {
+                        pr.Debug = this.Debug;
+                        rules.Add(pr);
+                    }
+                    return rules;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Takes a string input, and outputs a set of tokens according to the specified grammar.
         /// </summary>
         /// <param name="input"></param>
         /// <returns></returns>
         public IList<Token> Tokenise(string input)
         {
-            // Base case
             if (string.IsNullOrEmpty(input))
                 return new List<Token>() { };
 
@@ -246,9 +263,16 @@ namespace Parser
                     return list;
                 }
             }
-            throw new Exception(string.Format("Syntax error near {0}...", input));
+            throw new Exception(string.Format("Syntax error near {0}...", input.Substring(0, 20)));
         }
 
+        /// <summary>
+        /// Parses a string input into an abstract syntax tree.
+        /// </summary>
+        /// <param name="input">The input to parse.</param>
+        /// <param name="rootProductionRule">The starting / root production rule which defines the grammar.</param>
+        /// <param name="throwOnFailure">When set to true, the method throws an error on failure. Otherwise, the method simply returns a null result.</param>
+        /// <returns></returns>
         public Node Parse(string input, string rootProductionRule, bool throwOnFailure = true)
         {
             if (string.IsNullOrEmpty(input))
@@ -283,10 +307,11 @@ namespace Parser
         }
 
         /// <summary>
-        /// Parses an abstract syntax tree using a set of visitors.
-        /// </summary>GRAMMAR
-        /// <typeparam name="TState"></typeparam>
-        /// <param name="node"></param>
+        /// Navigates an abstract syntax tree using a set of visitors.
+        /// </summary>
+        /// <param name="node">The (root) node to at the top of the tree to navigate.</param>
+        /// <param name="visitors">The Visitor object to use to navigate the tree.</param>
+        /// <param name="resultMapping">An optional function to map the final state of the visitor into the desired result. If not set, then returns the state.</param>
         /// <returns></returns>
         public object Execute(Node node, Visitor visitors, Func<dynamic, object> resultMapping = null)
         {
@@ -301,4 +326,7 @@ namespace Parser
                 return resultMapping(state);
         }
     }
+
+    #endregion
+
 }

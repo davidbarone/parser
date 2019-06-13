@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Parser
 {
     /// <summary>
-    /// Represents a node of the AST.
+    /// Represents a non-leaf node of the AST.
     /// </summary>
     public class Node
     {
@@ -17,7 +17,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Name of the node is the production rule or token name it matches
+        /// Name of the node. Equivalent to the name of the symbol it matches, or its alias.
         /// </summary>
         public string Name { get; set; }
 
@@ -26,6 +26,10 @@ namespace Parser
         /// </summary>
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
 
+        /// <summary>
+        /// Enables processing of this node.
+        /// </summary>
+        /// <param name="v"></param>
         public void Accept(Visitor v)
         {
             v.Visit(this);

@@ -9,34 +9,10 @@ namespace Parser
 {
     /// <summary>
     /// Defines a symbol in a production rule. A symbol can be a terminal (lexer / terminal symbol)
-    /// or another production rule (non terminal)
+    /// or another production rule (non terminal).
     /// </summary>
     public class Symbol
     {
-        public string Alias { get; set; }
-
-        public bool Debug { get; set; }
-
-        /// <summary>
-        /// Name of the symbol.
-        /// </summary>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// Set to true if the symbol is optional in the syntax.
-        /// </summary>
-        public bool Optional { get; set; }
-
-        /// <summary>
-        /// Set to true if symbol allows multiple values (list).
-        /// </summary>
-        public bool Many { get; set; }
-
-        /// <summary>
-        /// Set to true if symbol to be ignored in the ast.
-        /// </summary>
-        public bool Ignore { get; set; }
-
         public Symbol(string value, RuleType ruleType)
         {
             string name = value;
@@ -64,7 +40,7 @@ namespace Parser
             }
 
             this.Name = name;
-            if (parts==null || parts.Length == 1)
+            if (parts == null || parts.Length == 1)
                 this.Alias = this.Name;
 
             this.Optional = modifier == "?" || modifier == "*";
@@ -72,6 +48,41 @@ namespace Parser
             this.Ignore = modifier == "!";
         }
 
+        /// <summary>
+        /// Optional alias. If not set, then equivalent to the Name property. Used to name child properties in the abstract syntax tree.
+        /// </summary>
+        public string Alias { get; set; }
+
+        /// <summary>
+        /// Set to true to provide additional debug information.
+        /// </summary>
+        public bool Debug { get; set; }
+
+        /// <summary>
+        /// Name of the symbol.
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Set to true if the symbol is optional in the syntax.
+        /// </summary>
+        public bool Optional { get; set; }
+
+        /// <summary>
+        /// Set to true if symbol allows multiple values (list).
+        /// </summary>
+        public bool Many { get; set; }
+
+        /// <summary>
+        /// Set to true if symbol to be ignored in the abstract syntax tree.
+        /// </summary>
+        public bool Ignore { get; set; }
+
+        /// <summary>
+        /// Matches symbol to input.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
         public MatchResult Match(string input)
         {
             var pat = string.Format(@"\A[\s]*(?<match>({0}))(?<remainder>([\s\S]*))[\s]*\Z", Name);
@@ -85,6 +96,11 @@ namespace Parser
             };
         }
 
+        /// <summary>
+        /// Checks whether the input matches this symbol.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
         public bool IsMatch(string input)
         {
             var pat = string.Format(@"\A[\s]*(?<match>({0}))(?<remainder>([\s\S]*))[\s]*\Z", Name);
@@ -96,8 +112,8 @@ namespace Parser
         /// Checks whether the current symbol matches, and can read the input.
         /// If successful, the successful input is returned in the context.
         /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
+        /// <param name="context">The parser context.</param>
+        /// <returns>True if successful. The abstract syntax tree is constructed using the context.Results object.</returns>
         public bool Parse(ParserContext context)
         {
             if (Debug)

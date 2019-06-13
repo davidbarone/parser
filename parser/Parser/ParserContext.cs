@@ -6,8 +6,16 @@ using System.Threading.Tasks;
 
 namespace Parser
 {
+    /// <summary>
+    /// Provides context during the parsing process.
+    /// </summary>
     public class ParserContext
     {
+        /// <summary>
+        /// Creates a new ParserContext object.
+        /// </summary>
+        /// <param name="productionRules">The list of production rules.</param>
+        /// <param name="tokens">The tokenised input to parse.</param>
         public ParserContext(IList<ProductionRule> productionRules, IList<Token> tokens)
         {
             this.ProductionRules = productionRules;
@@ -20,10 +28,21 @@ namespace Parser
         public IList<ProductionRule> ProductionRules { get; private set; }
         public Stack<ProductionRule> CurrentProductionRule { get; set; }
         private IList<Token> Tokens { get; set; }
+        public Stack<object> Results { get; private set; }
 
         public Token PeekToken()
         {
             return Tokens[CurrentTokenIndex];
+        }
+
+        public void PushResult(object value)
+        {
+            Results.Push(value);
+        }
+
+        public object PopResult()
+        {
+            return Results.Pop();
         }
 
         /// <summary>
@@ -39,7 +58,9 @@ namespace Parser
             }
         }
 
-        // Pointer to current token position.
+        /// <summary>
+        /// Pointer to current token position.
+        /// </summary>
         public int CurrentTokenIndex { get; set; }
 
         /// <summary>
@@ -65,20 +86,8 @@ namespace Parser
             }
         }
 
-        public Stack<object> Results { get; private set; }
-
-        public void PushResult(object value)
-        {
-            Results.Push(value);
-        }
-
-        public object PopResult()
-        {
-            return Results.Pop();
-        }
-
         /// <summary>
-        /// Updates the result object(s) in the context.
+        /// Helper method to construct the tree. Updates the result object(s) in the context.
         /// </summary>
         public void UpdateResult(string name, object value)
         {
