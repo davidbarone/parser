@@ -10,7 +10,7 @@ The parser requires a grammar to be specified. This grammar can be specified in 
 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
-- Creating an enumeration of ProductionRule objects
+- Creating an enumeration of `ProductionRule` objects
 - Creating a grammar vaguely similar to BNF/EBNF
 
 ### Using Production Rules for Grammar
@@ -48,8 +48,8 @@ var grammar = new List<ProductionRule>
 (The above is actually the grammar for specifying the 'BNF-like' grammar used by this tool)
 
 Each line specifies an 'expansion' rule. Rules can be either:
-(a) Lexer rules
-(b) Production rules
+- Lexer rules
+- Production rules
 
 Rules are named using alpha-numeric characters, or the underscore character. Rule names must start with an alpha character. Lexer rules are defined as requiring an uppercase first character, and parser rules must start with a lower case character.
 
@@ -59,9 +59,9 @@ Parser rules define non-terminal symbols. Parser rules general map to a set of l
 
 `(alias(:))symbol(modifier)`
 
-The alias and modifier parts are options. In a simple case, the symbol is the name of another rule (either lexer or parser rule).
+The alias and modifier parts are options. In a simple case, the symbol is the name of another rule (either lexer or parser rule). symbols in a parser rule can be other parser rules which in turn expand into other parser rules, and hence in this fashion a complex grammar can be specified.
 
-### Specifying a grammar in BFN style
+### Specifying a grammar in BFN/EBFN style
 
 A grammar can also be specified in a format similar to BNF/EBNF for example:
 
@@ -108,26 +108,26 @@ search_factor       =   OR!, :boolean_term;
 search_condition    =   OR:boolean_term, OR:search_factor*;";
 ```
 
-The above grammar specifies an 'SQL-like' grammar. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols is shown below:
+The above grammar specifies an 'SQL-like' grammar for constructing a 'filter' expression. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols allows in the grammar is shown below:
 
-|Symbol    |Description                            |
-|:--------:|:------------------------------------- |
-|=         |Assignment of production rule          |
-|:         |Alias/rewrite node property name       |
-|\|        |Alternate expansion                    |
-|,         |Sequence / contanenation               |
-|;         |Termination of rule                    |
-|(\*...\*) |Comment                                |
-|?         |Rule modifier - 0 or 1 times (optional)|
-|+         |Rule modifier - 1 or more times        |
-|*         |Rule modifier - 0 or more times        |
-|!         |Rule modifier - ignore result from ast |
+|Symbol    |Description                              |
+|:--------:|:----------------------------------------|
+|=         |Assignment of production rule            |
+|:         |Alias/rewrite node property name         |
+|\|        |Alternate expansion                      |
+|,         |Sequence / contanenation                 |
+|;         |Termination of rule                      |
+|(\*...\*) |Comment                                  |
+|?         |Symbol modifier - 0 or 1 times (optional)|
+|+         |Symbol modifier - 1 or more times        |
+|*         |Symbol modifier - 0 or more times        |
+|!         |Symbol modifier - ignore result from ast |
 
 ## Tokeniser
 The tokeniser uses regex expressions as rules. Any valid C# regex can be used. Note that every string token in your input must be defined as a lexer rule. There is no support for literal tokens defined in parser rules. All parser rules must reference either other parser rules, or lexer rules.
 
 ## Tree Generation and Rule Modifiers
-The result of the .Parse() method is an abstract syntax tree. The structure of the tree is generally designed to be close to the grammar. for example, given a grammar:
+The result of the `Parser.Parse()` method is an abstract syntax tree. The structure of the tree is designed to be close to the grammar. for example, given a grammar:
 ```
 FOO     = "FOO";
 BAR     = "BAR";
@@ -151,9 +151,9 @@ Then the string gets parsed into a tree as follows:
    |    |    |
   FOO  PLUS BAR
 ```
-In general, a non-terminal node is represented using the `Node` class, and terminal / leaf nodes are represented using the `Token` class. The `Name` property provides the name of non-terminal nodes, and the `TokenName` property provides the name of tokens (the `TokenValue` provides the actual value of a token). This is the default behaviour withough specifying any aliases or modification rules.
+In general, a non-terminal node is represented using the `Node` class, and terminal / leaf nodes are represented using the `Token` class. The `Name` property provides the name of non-terminal nodes, and the `TokenName` property provides the name of tokens (the `TokenValue` provides the actual value of a token). This is the default behaviour without specifying any aliases or modification rules.
 
-In the above example, FOO, PLUS, BAR, and BAZ are all represented by `Token` objects. Each `Node` object contains a `Properties` dictionary which provides access to the child nodes. By default, the key of each property is the same as the child name. Therefore, to access the input value "FOO" in the tree, you would use:
+In the above example, FOO, PLUS, BAR, and BAZ are all represented by `Token` objects. Each `Node` object contains a `Properties` dictionary which provides access to the child / leaf nodes. By default, the key of each property is the same as the child name. Therefore, to access the input value "FOO" in the tree, you would use:
 
 `fbb.Properties["fb"].Properties["FOO"].TokenValue`
 
@@ -179,7 +179,7 @@ The resulting tree would be:
    |         |
   FOO       BAR
 ```
-### Aliases / rewrites
+### Aliases / Rewrites of Symbols
 Another way of manipulating the tree is to rename properties. This is done via the `alias:symbol` syntax. for example, if we change the grammar to be:
 ```
 FOO     = "FOO";
@@ -201,7 +201,7 @@ The tree is changed as follows:
    |         |
   FB1       FB2
 ```
-Note how the properties of the 'fb' node have been changed. The contents of these are still the same (i.e. FOO and BAR), but the *names* have changed. All this does is change the keys used in the Properties dictionary. If a rule uses the same alias more than once, then the results are automatically grouped into a collection. For example, using a grammar:
+Note how the properties of the 'fb' node have been changed. The contents of these are still the same (i.e. FOO and BAR), but the *names* have changed. All this does is change the keys used in the Properties dictionary. If a rule uses the same alias for more than one symbol, then the results are automatically grouped into a collection. For example, using a grammar:
 ```
 FOO     = "FOO";
 BAR     = "BAR";
@@ -210,7 +210,7 @@ PLUS    = "[+]";
 fb      = FB:FOO,PLUS!,FB:BAR;
 fbb     = fb,PLUS!,BAZ;
 ```
-(Note both symbols in the 'fb' rule are now renamed to 'FB'), the following tree is formed:
+(Note both symbols in the 'fb' rule are now aliased to 'FB'), the following tree is formed:
 ```
              fbb
               |
@@ -220,7 +220,7 @@ fbb     = fb,PLUS!,BAZ;
         |
         FB
 ```
-In this case, the object referenced at `fbb.Properties["fb"].Properties["FB"]` is of type IEnumerable<Token> and contains both FOO and BAR.
+In this case, the object referenced at `fbb.Properties["fb"].Properties["FB"]` is of type `IEnumerable<Token>` and contains both FOO and BAR.
 
 A special renaming case is to use a blank name, for example:
 ```
@@ -231,7 +231,7 @@ PLUS    = "[+]";
 fb      = :FOO,PLUS!,:BAR;
 fbb     = fb,PLUS!,BAZ;
 ```
-Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read 'rename -> empty'). By *not* providing a property name, instead of creating a node under fb, the objects get collapsed up the tree, so the new tree looks like this:
+Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read as: 'rename to empty'). By *not* providing a property name, instead of creating a node under fb, the objects get collapsed up the tree, so the new tree looks like this:
 ```
              fbb
               |
@@ -241,7 +241,7 @@ Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read 're
 ```
 In this example, the IEnumerable<Token> object has been collapsed up the tree, and is now referenced at `fbb.Properties["fb"].`.
 
-** Note that a constraint applies that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.
+**Note that a constraint applies that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.**
 
 Making a further modification to the grammar:
 ```
