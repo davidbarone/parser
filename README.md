@@ -1,12 +1,12 @@
 # parser
-Simple C# lexer and parser
+A simple C# lexer and parser
 
 This is a top-down brute-force parser with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple DSLs. The parser takes an input and can provide the following services:
 - lexically analyse the input into a series of tokens (tokenising)
 - parse the tokens into an abstract syntax tree (parsing), or
 - Process the abstract syntax tree, to execute the input in some way.
 
-The parser requires a grammar to be specified. This grammar can be specified in a 'EBNF-like' fashion, or through a special 'ProductionRule' class. A visitor class is provided to allow developers to implement logic to process the AST.
+The parser requires a grammar to be specified. This grammar can be specified in a 'BNF/EBNF-like' fashion, or through a special `ProductionRule` class. A `Visitor` class is provided to allow developers to implement logic to process or 'walk' the AST.
 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
@@ -113,7 +113,7 @@ The above grammar specifies an 'SQL-like' grammar for constructing a 'filter' ex
 |Symbol    |Description                              |
 |:--------:|:----------------------------------------|
 |=         |Assignment of production rule            |
-|:         |Alias/rewrite node property name         |
+|:         |Alias/rewrite modifier                   |
 |\|        |Alternate expansion                      |
 |,         |Sequence / contanenation                 |
 |;         |Termination of rule                      |
@@ -241,7 +241,7 @@ Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read as:
 ```
 In this example, the IEnumerable<Token> object has been collapsed up the tree, and is now referenced at `fbb.Properties["fb"].`.
 
-**Note that a constraint applies that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.**
+*Note that a constraint exists that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.*
 
 Making a further modification to the grammar:
 ```
@@ -277,7 +277,7 @@ FOO+BARBAZ
 FOOBAR+BAZ
 FOOBARBAZ
 ```
-When an optional item is not matched, then no child is inserted into the tree.
+When an optional symbol is not matched, then no child is inserted into the tree.
 
 ### Many Modifier
 The 'many' modifiers (+ and *) allow a symbol to be repeated more than once. For example:
@@ -298,7 +298,7 @@ FOO++BAZ
 FOO+BARBAR+BAZ
 FOO+BARBARBAR+BAZ
 ```
-When a symbol is modified with the 'many' modifiers, they still occupy a single node or child property in the tree. However, the contents of the node becomes an IEnumerable which can be iterated over.
+When a symbol is modified with the 'many' modifiers, they still occupy a single node or child property in the tree. However, the contents of the node becomes an `IEnumerable` which can be iterated over.
 
 ## Ordering of rules
 the order of rules is important. As the parser adopts a brute force approach, it will continue looking for matching rules until the first match. Subsequent rules will be ignored. If a failure occurs at a nested position, the parser will backtrack from the point of failure, and continue looking for matching rules. If all paths are attempted without a match, parsing of the input fails.
@@ -315,20 +315,20 @@ Can be rewritten as:
 
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
-## Processing a tree using the Visitor class
-A visitor class is included which allows for an AST to be processed. A new visitor is created using:
+## Processing a Tree Using the Visitor Class
+A `Visitor` class is included which allows for an AST to be processed. A new visitor is created using:
 
 `var visitor = new Visitor(initialState)`
 
-The `initialState` parameter is a dynamic object, providing any initial state to the tree processing function. Visitor handlers are then added. A visitor typically processes a portion of the tree:
+The `initialState` parameter is a `dynamic` object, providing any initial state to the tree processing function. Visitor handlers are then added. A visitor typically processes a portion of the tree:
 
 `visitor.AddVisitor(ruleName, (visitor, node)=> {...});`
 
 The first parameter is the name of the rule which is processed by the handler. The second parameter is a function which takes 2 parameters:
-- The Visitor class itself
+- The `Visitor` class
 - The current node being evaluated
 The body of this function is then free to process the node in any way.
 
-State can be persisted across handlers by using the `State` property of the visitor object.
+State can be persisted across handlers by using the `Visitor.State` property.
 
 --- end ---
