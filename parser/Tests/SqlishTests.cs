@@ -8,12 +8,63 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public class SqlishTests
+    public class SqlishTests : Tests
     {
+        public override void DoTests()
+        {
+            // Check the Sqlist grammar
+            TestGrammar("Sqlish Grammar", this.SqlishGrammar);
+
+            // Success
+            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "MY_LIST IN ('abc')", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, null, "search_condition", null, false);
+            TestParser(this.SqlishGrammar, "", "search_condition", null, false);
+            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "FIELD_1 EQ 123", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "MY_LIST IN ('abc','mno','xyz')", "search_condition", this.SqlishVisitor, false);
+
+            // Using an identifier starting with same characters as another token ('LE')
+            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, false);
+
+            // BETWEEN / NOT  BETWEEN
+            TestParser(this.SqlishGrammar, "LEVEL_1 BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+
+            // CONTAINS / NOT CONTAINS
+            TestParser(this.SqlishGrammar, "LEVEL_1 CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+
+            // ISBLANK / ISNOTBLANK
+            TestParser(this.SqlishGrammar, "LEVEL_1 ISBLANK", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT ISBLANK", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+
+            // Parens
+            TestParser(this.SqlishGrammar, "(LEVEL_1 ISBLANK)", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "search_condition", this.SqlishVisitor, false);
+            TestParser(this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 ISBLANK) OR (LEVEL_4 NOT IN (1,2,3) AND LEVEL_5 CONTAINS 'TEST'))", "search_condition", this.SqlishVisitor, false);
+
+            // Failure
+            TestParser(this.SqlishGrammar, "FIELD", "comparison predicate", this.SqlishVisitor, true);
+            TestParser(this.SqlishGrammar, "FIELD GT 123 AND", "comparison predicate", this.SqlishVisitor, true);
+            TestParser(this.SqlishGrammar, "FIELD", "search_condition", this.SqlishVisitor, true);
+            TestParser(this.SqlishGrammar, "FIELD GT 123 AND", "search_condition", this.SqlishVisitor, true);
+        }
+
         /// <summary>
         /// Defines the grammar of Sqlish - our 'pseudo SQL' language.
         /// </summary>
-        public static string SqlishGrammar => @"
+        public string SqlishGrammar => @"
 
 (* Lexer Rules *)
 
@@ -60,200 +111,200 @@ search_condition    =   OR:boolean_term, OR:search_factor*;";
         /// Returns a visitor object suitable for parsing Sqlish grammar.
         /// </summary>
         /// <returns></returns>
-        private static Visitor SqlishVisitor()
+        private Visitor SqlishVisitor
         {
-            // Initial state
-            dynamic state = new ExpandoObject();
-            state.Parameters = new List<SqlParameter>();
-            state.Predicates = new Stack<string>();
-            state.Sql = string.Empty;
+            get
+            {
+                // Initial state
+                dynamic state = new ExpandoObject();
+                state.Parameters = new List<SqlParameter>();
+                state.Predicates = new Stack<string>();
+                state.Sql = string.Empty;
 
-            var visitor = new Visitor(state);
+                var visitor = new Visitor(state);
 
-            visitor.AddVisitor(
-                "search condition",
-                (v, n) =>
-                {
-                    dynamic searchCondition = n.Properties["OR"];
-                    foreach (var item in (IEnumerable<Object>)searchCondition)
+                visitor.AddVisitor(
+                    "search_condition",
+                    (v, n) =>
                     {
-                        var node = item as Node;
-                        if (node == null)
-                            throw new Exception("Array element type not Node.");
-                        node.Accept(v);
+                        dynamic searchCondition = n.Properties["OR"];
+                        foreach (var item in (IEnumerable<Object>)searchCondition)
+                        {
+                            var node = item as Node;
+                            if (node == null)
+                                throw new Exception("Array element type not Node.");
+                            node.Accept(v);
+                        }
+
+                        List<string> items = new List<string>();
+                        foreach (var item in (IEnumerable<Object>)n.Properties["OR"])
+                        {
+                            items.Add(v.State.Predicates.Pop());
+                        }
+                        var sql = string.Format("{0}", string.Join(" OR ", items.ToArray()));
+                        v.State.Predicates.Push(sql);
+                        v.State.Sql = sql;
                     }
+                );
 
-                    List<string> items = new List<string>();
-                    foreach (var item in (IEnumerable<Object>)n.Properties["OR"])
+                visitor.AddVisitor(
+                    "boolean_term",
+                    (v, n) =>
                     {
-                        items.Add(v.State.Predicates.Pop());
-                    }
-                    var sql = string.Format("{0}", string.Join(" OR ", items.ToArray()));
-                    v.State.Predicates.Push(sql);
-                    v.State.Sql = sql;
-                }
-            );
+                        foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
+                        {
+                            var node = item as Node;
+                            if (node == null)
+                                throw new Exception("Array element type not Node.");
+                            node.Accept(v);
+                        }
 
-            visitor.AddVisitor(
-                "boolean term",
-                (v, n) =>
-                {
-                    foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
-                    {
-                        var node = item as Node;
-                        if (node == null)
-                            throw new Exception("Array element type not Node.");
-                        node.Accept(v);
-                    }
-
-                    List<string> items = new List<string>();
-                    foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
-                    {
-                        items.Add(v.State.Predicates.Pop());
-                    }
-                    var sql = string.Format("{0}", string.Join(" AND ", items.ToArray()));
-                    v.State.Predicates.Push(sql);
-                }
-            );
-
-            visitor.AddVisitor(
-                "boolean primary",
-                (v, n) =>
-                {
-                    // If CONDITION property present, then need to wrap () around condition.
-                    if (n.Properties.ContainsKey("CONDITION"))
-                    {
-                        var node = n.Properties["CONDITION"] as Node;
-                        if (node == null)
-                            throw new Exception("Array element type not Node.");
-
-                        node.Accept(v);
-
-                        var predicates = ((Stack<string>)v.State.Predicates).Pop();
-                        var sql = string.Format("({0})", predicates);
+                        List<string> items = new List<string>();
+                        foreach (var item in (IEnumerable<Object>)n.Properties["AND"])
+                        {
+                            items.Add(v.State.Predicates.Pop());
+                        }
+                        var sql = string.Format("{0}", string.Join(" AND ", items.ToArray()));
                         v.State.Predicates.Push(sql);
                     }
-                }
-            );
+                );
 
-            visitor.AddVisitor(
-                "comparison predicate",
-                (v, n) =>
-                {
-                    Dictionary<string, string> operators = new Dictionary<string, string>()
-                            {
+                visitor.AddVisitor(
+                    "boolean_primary",
+                    (v, n) =>
+                    {
+                    // If CONDITION property present, then need to wrap () around condition.
+                    if (n.Properties.ContainsKey("CONDITION"))
+                        {
+                            var node = n.Properties["CONDITION"] as Node;
+                            if (node == null)
+                                throw new Exception("Array element type not Node.");
+
+                            node.Accept(v);
+
+                            var predicates = ((Stack<string>)v.State.Predicates).Pop();
+                            var sql = string.Format("({0})", predicates);
+                            v.State.Predicates.Push(sql);
+                        }
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "comparison_predicate",
+                    (v, n) =>
+                    {
+                        Dictionary<string, string> operators = new Dictionary<string, string>()
+                                {
                                 {"EQ_OP", "="},
                                 {"NE_OP", "<>"},
                                 {"LT_OP", "<"},
                                 {"LE_OP", "<="},
                                 {"GT_OP", ">"},
                                 {"GE_OP", ">="},
-                            };
+                                };
 
-                    var i = v.State.Parameters.Count;
-                    var sql = string.Format(
-                        "{0} {1} @{2}",
-                        ((Token)n.Properties["LHV"]).TokenValue,
-                        operators[(string)((Token)n.Properties["OPERATOR"]).TokenName],
-                        "P" + i
-                    );
-                    v.State.Predicates.Push(sql);
-                    v.State.Parameters.Add(new SqlParameter()
+                        var i = v.State.Parameters.Count;
+                        var sql = string.Format(
+                            "{0} {1} @{2}",
+                            ((Token)n.Properties["LHV"]).TokenValue,
+                            operators[(string)((Token)n.Properties["OPERATOR"]).TokenName],
+                            "P" + i
+                        );
+                        v.State.Predicates.Push(sql);
+                        v.State.Parameters.Add(new SqlParameter()
+                        {
+                            ParameterName = "P" + i,
+                            Value = ((Token)n.Properties["RHV"]).TokenValue
+                        });
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "in_predicate",
+                    (v, n) =>
                     {
-                        ParameterName = "P" + i,
-                        Value = ((Token)n.Properties["RHV"]).TokenValue
-                    });
-                }
-            );
-
-            visitor.AddVisitor(
-                "in predicate",
-                (v, n) =>
-                {
-                    var i = v.State.Parameters.Count;
-                    var sql = "";
-                    sql = string.Format(
-                        "{0} {1} @{2}",
-                        ((Token)n.Properties["LHV"]).TokenValue,
-                        n.Properties.ContainsKey("NOT") ? "NOT IN" : "IN",
-                        "P" + i
-                    );
+                        var i = v.State.Parameters.Count;
+                        var sql = "";
+                        sql = string.Format(
+                            "{0} {1} @{2}",
+                            ((Token)n.Properties["LHV"]).TokenValue,
+                            n.Properties.ContainsKey("NOT") ? "NOT IN" : "IN",
+                            "P" + i
+                        );
 
                     // Add the SQL + update args object.
                     v.State.Predicates.Push(sql);
-                    object value = ((List<object>)n.Properties["RHV"]).Select(t => ((Token)t).TokenValue.Replace("'", ""));
-                    v.State.Parameters.Add(new SqlParameter()
-                    {
-                        ParameterName = "P" + i,
-                        Value = value
-                    });
-                }
-            );
+                        object value = ((List<object>)n.Properties["RHV"]).Select(t => ((Token)t).TokenValue.Replace("'", ""));
+                        v.State.Parameters.Add(new SqlParameter()
+                        {
+                            ParameterName = "P" + i,
+                            Value = value
+                        });
+                    }
+                );
 
-            visitor.AddVisitor(
-                "between predicate",
-                (v, n) =>
-                {
-                    var i = v.State.Parameters.Count;
-                    var sql = string.Format(
-                        "{0} {1} @{2} AND @{3}",
-                        ((Token)n.Properties["LHV"]).TokenValue,
-                        n.Properties.ContainsKey("NOT") ? "NOT BETWEEN" : "BETWEEN",
-                        "P" + i,
-                        "P" + (i + 1)
-                    );
-                    v.State.Predicates.Push(sql);
-                    v.State.Parameters.Add(new SqlParameter()
+                visitor.AddVisitor(
+                    "between_predicate",
+                    (v, n) =>
                     {
-                        ParameterName = "P" + i,
-                        Value = ((Token)n.Properties["OP1"]).TokenValue
-                    });
-                    v.State.Parameters.Add(new SqlParameter()
+                        var i = v.State.Parameters.Count;
+                        var sql = string.Format(
+                            "{0} {1} @{2} AND @{3}",
+                            ((Token)n.Properties["LHV"]).TokenValue,
+                            n.Properties.ContainsKey("NOT") ? "NOT BETWEEN" : "BETWEEN",
+                            "P" + i,
+                            "P" + (i + 1)
+                        );
+                        v.State.Predicates.Push(sql);
+                        v.State.Parameters.Add(new SqlParameter()
+                        {
+                            ParameterName = "P" + i,
+                            Value = ((Token)n.Properties["OP1"]).TokenValue
+                        });
+                        v.State.Parameters.Add(new SqlParameter()
+                        {
+                            ParameterName = "P" + i++,
+                            Value = ((Token)n.Properties["OP1"]).TokenValue
+                        });
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "contains_predicate",
+                    (v, n) =>
                     {
-                        ParameterName = "P" + i++,
-                        Value = ((Token)n.Properties["OP1"]).TokenValue
-                    });
-                }
-            );
+                        var i = v.State.Parameters.Count;
+                        var sql = string.Format(
+                            "{0} {1} @{2}",
+                            ((Token)n.Properties["LHV"]).TokenValue,
+                            n.Properties.ContainsKey("NOT") ? "NOT LIKE" : "LIKE",
+                            "P" + i
+                        );
+                        v.State.Predicates.Push(sql);
+                        v.State.Parameters.Add(new SqlParameter()
+                        {
+                            ParameterName = "P" + i,
+                            Value = ((Token)n.Properties["RHV"]).TokenValue
+                        });
+                    }
+                );
 
-            visitor.AddVisitor(
-                "contains predicate",
-                (v, n) =>
-                {
-                    var i = v.State.Parameters.Count;
-                    var sql = string.Format(
-                        "{0} {1} @{2}",
-                        ((Token)n.Properties["LHV"]).TokenValue,
-                        n.Properties.ContainsKey("NOT") ? "NOT LIKE" : "LIKE",
-                        "P" + i
-                    );
-                    v.State.Predicates.Push(sql);
-                    v.State.Parameters.Add(new SqlParameter()
+                visitor.AddVisitor(
+                    "blank_predicate",
+                    (v, n) =>
                     {
-                        ParameterName = "P" + i,
-                        Value = ((Token)n.Properties["RHV"]).TokenValue
-                    });
-                }
-            );
+                        var i = v.State.Parameters.Count;
+                        var sql = string.Format(
+                            "{0} {1}",
+                            ((Token)n.Properties["LHV"]).TokenValue,
+                            n.Properties.ContainsKey("NOT") ? "IS NOT NULL" : "IS NULL"
+                        );
+                        v.State.Predicates.Push(sql);
+                    }
+                );
 
-            visitor.AddVisitor(
-                "blank predicate",
-                (v, n) =>
-                {
-                    var i = v.State.Parameters.Count;
-                    var sql = string.Format(
-                        "{0} {1}",
-                        ((Token)n.Properties["LHV"]).TokenValue,
-                        n.Properties.ContainsKey("NOT") ? "IS NOT NULL" : "IS NULL"
-                    );
-                    v.State.Predicates.Push(sql);
-                }
-            );
-
-            return visitor;
+                return visitor;
+            }
         }
-
-
-
     }
 }

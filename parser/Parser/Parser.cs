@@ -123,9 +123,16 @@ namespace Parser
                         if (expansionAsToken != null)
                         {
                             // Lexer Rule
+                            var expansionValue = expansionAsToken.TokenValue;
+                            if (expansionValue[0] == '"' && expansionValue[expansionValue.Length - 1] == '"')
+                            {
+                                // remove start / ending "
+                                expansionValue = expansionValue.Substring(1, expansionValue.Length - 2);
+                            }
+
                             ProductionRule pr = new ProductionRule(
                                 rule,
-                                expansionAsToken.TokenValue
+                                expansionValue
                             );
                             v.State.ProductionRules.Add(pr);
                         }
