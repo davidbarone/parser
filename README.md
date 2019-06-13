@@ -315,3 +315,20 @@ Can be rewritten as:
 
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
+## Processing a tree using the Visitor class
+A visitor class is included which allows for an AST to be processed. A new visitor is created using:
+
+`var visitor = new Visitor(initialState)`
+
+The `initialState` parameter is a dynamic object, providing any initial state to the tree processing function. Visitor handlers are then added. A visitor typically processes a portion of the tree:
+
+`visitor.AddVisitor(ruleName, (visitor, node)=> {...});`
+
+The first parameter is the name of the rule which is processed by the handler. The second parameter is a function which takes 2 parameters:
+- The Visitor class itself
+- The current node being evaluated
+The body of this function is then free to process the node in any way.
+
+State can be persisted across handlers by using the `State` property of the visitor object.
+
+--- end ---
