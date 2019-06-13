@@ -17,30 +17,32 @@ A grammar is used to define the language for the parser. This grammar can be cre
 A grammar looks something like this:
 
 ```
-            // Lexer Rules
-            new ProductionRule("COMMENT", @"\(\*.*\*\)"), // (*...*)
-            new ProductionRule("EQ", "="),                  // definition
-            new ProductionRule("COMMA", "[,]"),               // concatenation
-            new ProductionRule("COLON", "[:]"),               // rewrite / aliasing
-            new ProductionRule("SEMICOLON", ";"),           // termination
-            new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
-            new ProductionRule("OR", @"[|]"),                 // alternation
-            new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
-            new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_]+"),
-            new ProductionRule("NEWLINE", "\n"),
+var grammar = new List<ProductionRule>
+{
+    // Lexer Rules
+    new ProductionRule("COMMENT", @"\(\*.*\*\)"),                   // (*...*)
+    new ProductionRule("EQ", "="),                                  // definition
+    new ProductionRule("COMMA", "[,]"),                             // concatenation
+    new ProductionRule("COLON", "[:]"),                             // rewrite / aliasing
+    new ProductionRule("SEMICOLON", ";"),                           // termination
+    new ProductionRule("MODIFIER", "[?!+*]"),                       // modifies the symbol
+    new ProductionRule("OR", @"[|]"),                               // alternation
+    new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),   // quoted literal
+    new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_]+"),      // rule names
+    new ProductionRule("NEWLINE", "\n"),
 
-            // Parser Rules
-            new ProductionRule("alias", ":IDENTIFIER?", ":COLON"),
-            new ProductionRule("symbol", "ALIAS:alias?", "IDENTIFIER:IDENTIFIER", "MODIFIER:MODIFIER?"),
-            new ProductionRule("parserSymbolTerm", ":symbol"),
-            new ProductionRule("parserSymbolFactor", "COMMA!", ":symbol"),
-            new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
-            new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
-            new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
-
-            new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:QUOTEDLITERAL", "SEMICOLON!"),      // Lexer rule
-            new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:parserSymbolsExpr", "SEMICOLON!"),  // Parser rule
-            new ProductionRule("grammar", "RULES:rule+")
+    // Parser Rules
+    new ProductionRule("alias", ":IDENTIFIER?", ":COLON"),
+    new ProductionRule("symbol", "ALIAS:alias?", "IDENTIFIER:IDENTIFIER", "MODIFIER:MODIFIER?"),
+    new ProductionRule("parserSymbolTerm", ":symbol"),
+    new ProductionRule("parserSymbolFactor", "COMMA!", ":symbol"),
+    new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
+    new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
+    new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
+    new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:QUOTEDLITERAL", "SEMICOLON!"),      // Lexer rule
+    new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:parserSymbolsExpr", "SEMICOLON!"),  // Parser rule
+    new ProductionRule("grammar", "RULES:rule+")
+}
 ```
 
 (The above is actually the grammar for specifying the 'BNF-like' grammar used by this tool)
@@ -106,7 +108,21 @@ search_factor       =   OR!, :boolean_term;
 search_condition    =   OR:boolean_term, OR:search_factor*;";
 ```
 
-The above grammar specifies an 'SQL-like' grammar. Again, the same rules apply for lexer rules and parser rules.
+The above grammar specifies an 'SQL-like' grammar. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols is shown below:
+
+|Symbol  |Description                            |
+|:------:|:------------------------------------- |
+|=       |Assignment of production rule          |
+|:       |Alias/rewrite node property name       |
+|\|      |Alternate expansion                    |
+|,       |Sequence / contanenation               |
+|;       |Termination of rule                    |
+|(*...*) |Comment                                |
+|?       |Rule modifier - 0 or 1 times (optional)|
+|+       |Rule modifier - 1 or more times        |
+|*       |Rule modifier - 0 or more times        |
+|!       |Rule modifier - ignore result from ast |
+
 
 # Tokeniser
 The tokeniser uses regex expressions as rules.
