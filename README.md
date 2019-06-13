@@ -1,17 +1,17 @@
 # parser
 Simple C# lexer and parser
 
-This is a top-down brute-force parse with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple DSLs. The parser takes a input and can provide the following services:
-(a) lexically analyse the string into a series of tokens
-(b) parse the tokens into an abstract syntax tree, or
-(c) Process the abstract syntax tree, to execute the input in some way.
+This is a top-down brute-force parser with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple DSLs. The parser takes an input and can provide the following services:
+- lexically analyse the input into a series of tokens (tokenising)
+- parse the tokens into an abstract syntax tree (parsing), or
+- Process the abstract syntax tree, to execute the input in some way.
 
-The parser requires a grammar to be specified. This grammar can be specified in a 'EBNF-Like' fashion, or through a special 'ProductionRule' class. A dynamic visitor class is provided to allow developers to implement logic to process the AST. There is no pre-processing step rq
+The parser requires a grammar to be specified. This grammar can be specified in a 'EBNF-like' fashion, or through a special 'ProductionRule' class. A visitor class is provided to allow developers to implement logic to process the AST.
 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
-(a) Creating an enumeration of ProductionRule objects
-(b) Creating a grammar vaguely similar to BNF/EBNF
+- Creating an enumeration of ProductionRule objects
+- Creating a grammar vaguely similar to BNF/EBNF
 
 ### Using Production Rules for Grammar
 A grammar looks something like this:
