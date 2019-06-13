@@ -11,11 +11,10 @@ The parser requires a grammar to be specified. This grammar can be specified in 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
 - Creating an enumeration of `ProductionRule` objects
-- Creating a grammar vaguely similar to BNF/EBNF
+- Creating a grammar using 'BNF-ish' syntax
 
 ### Using Production Rules for Grammar
 A grammar looks something like this:
-
 ```
 var grammar = new List<ProductionRule>
 {
@@ -44,8 +43,7 @@ var grammar = new List<ProductionRule>
     new ProductionRule("grammar", "RULES:rule+")
 }
 ```
-
-(The above is actually the grammar for specifying the 'BNF-like' grammar used by this tool)
+(The above is actually the grammar for specifying the 'BNF-ish' grammar used by this tool)
 
 Each line specifies an 'expansion' rule. Rules can be either:
 - Lexer rules
@@ -61,10 +59,8 @@ Parser rules define non-terminal symbols. Parser rules general map to a set of l
 
 The alias and modifier parts are options. In a simple case, the symbol is the name of another rule (either lexer or parser rule). symbols in a parser rule can be other parser rules which in turn expand into other parser rules, and hence in this fashion a complex grammar can be specified.
 
-### Specifying a grammar in BFN/EBFN style
-
+### Specifying a grammar using BNF-ish syntax
 A grammar can also be specified in a format similar to BNF/EBNF for example:
-
 ```
 (* Lexer Rules *)
 
@@ -107,8 +103,7 @@ boolean_term        =   AND:boolean_primary, AND:boolean_factor*;
 search_factor       =   OR!, :boolean_term;
 search_condition    =   OR:boolean_term, OR:search_factor*;";
 ```
-
-The above grammar specifies an 'SQL-like' grammar for constructing a 'filter' expression. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols allows in the grammar is shown below:
+The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' expression. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols allows in the grammar is shown below:
 
 |Symbol    |Description                              |
 |:--------:|:----------------------------------------|
