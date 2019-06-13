@@ -2,11 +2,11 @@
 A simple C# lexer and parser
 
 This is a top-down brute-force parser with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple DSLs. The parser takes an input and can provide the following services:
-- lexically analyse the input into a series of tokens (tokenising)
-- parse the tokens into an abstract syntax tree (parsing), or
-- Process the abstract syntax tree, to execute the input in some way.
+- Lexically analyse the input into a series of tokens (tokenising)
+- Parse the tokens into an abstract syntax tree (parsing), or
+- Navigation through the abstract syntax tree, using a visitor class.
 
-The parser requires a grammar to be specified. This grammar can be specified in a 'BNF/EBNF-like' fashion, or through a special `ProductionRule` class. A `Visitor` class is provided to allow developers to implement logic to process or 'walk' the AST.
+The parser requires a grammar to be specified. This grammar can be specified using a 'BNF-ish' syntax, or through a special `ProductionRule` class. A `Visitor` class is provided to allow developers to implement logic to navigate or 'walk' the abstract syntax trees.
 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
@@ -311,7 +311,7 @@ Can be rewritten as:
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
 ## Processing a Tree Using the Visitor Class
-A `Visitor` class is included which allows for an AST to be processed. A new visitor is created using:
+A `Visitor` class is included which allows for an abstract syntax tree to be processed. A new visitor is created using:
 
 `var visitor = new Visitor(initialState)`
 
