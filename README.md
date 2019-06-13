@@ -63,7 +63,7 @@ The alias and modifier parts are options. In a simple case, the symbol is the na
 
 ### Specifying a grammar in BFN style
 
-A grammar can also be specified in a format similar to BNFm for example:
+A grammar can also be specified in a format similar to BNF/EBNF for example:
 
 ```
 (* Lexer Rules *)
@@ -123,6 +123,9 @@ The above grammar specifies an 'SQL-like' grammar. Again, the same rules apply f
 |*         |Rule modifier - 0 or more times        |
 |!         |Rule modifier - ignore result from ast |
 
+## Tokeniser
+The tokeniser uses regex expressions as rules. Any valid C# regex can be used. Note that every string token in your input must be defined as a lexer rule. There is no support for literal tokens defined in parser rules. All parser rules must reference either other parser rules, or lexer rules.
+
 ## Tree Generation and Rule Modifiers
 The result of the .Parse() method is an abstract syntax tree. The structure of the tree is generally designed to be close to the grammar. for example, given a grammar:
 ```
@@ -154,6 +157,7 @@ In the above example, FOO, PLUS, BAR, and BAZ are all represented by `Token` obj
 
 `fbb.Properties["fb"].Properties["FOO"].TokenValue`
 
+### Ignoring Items
 Sometimes you need to manipulate the tree. The first way to manipulate the tree is by ignoring nodes. In the example above, the PLUS symbols don't really add much semantics to the tree. We can have the parser remove these completely, by changing the grammar to:
 ```
 FOO     = "FOO";
@@ -175,21 +179,129 @@ The resulting tree would be:
    |         |
   FOO       BAR
 ```
+### Aliases / rewrites
+Another way of manipulating the tree is to rename properties. This is done via the `alias:symbol` syntax. for example, if we change the grammar to be:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FB1:FOO,PLUS!,FB2:BAR;
+fbb     = fb,PLUS!,BAZ;
+```
+The tree is changed as follows:
+```
+             fbb
+              |
+        -------------
+        |           |
+        fb         BAZ
+        |
+   -----------
+   |         |
+  FB1       FB2
+```
+Note how the properties of the 'fb' node have been changed. The contents of these are still the same (i.e. FOO and BAR), but the *names* have changed. All this does is change the keys used in the Properties dictionary. If a rule uses the same alias more than once, then the results are automatically grouped into a collection. For example, using a grammar:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FB:FOO,PLUS!,FB:BAR;
+fbb     = fb,PLUS!,BAZ;
+```
+(Note both symbols in the 'fb' rule are now renamed to 'FB'), the following tree is formed:
+```
+             fbb
+              |
+        -------------
+        |           |
+        fb         BAZ
+        |
+        FB
+```
+In this case, the object referenced at `fbb.Properties["fb"].Properties["FB"]` is of type IEnumerable<Token> and contains both FOO and BAR.
 
+A special renaming case is to use a blank name, for example:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = :FOO,PLUS!,:BAR;
+fbb     = fb,PLUS!,BAZ;
+```
+Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read 'rename -> empty'). By *not* providing a property name, instead of creating a node under fb, the objects get collapsed up the tree, so the new tree looks like this:
+```
+             fbb
+              |
+        -------------
+        |           |
+        fb         BAZ
+```
+In this example, the IEnumerable<Token> object has been collapsed up the tree, and is now referenced at `fbb.Properties["fb"].`.
 
-### Ignoring nodes
-for example, in the above case
+** Note that a constraint applies that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.
 
+Making a further modification to the grammar:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = :FOO,PLUS!,:BAR;
+fbb     = ITEMS:fb,PLUS!,ITEMS:BAZ;
+```
+Results in the tree being flattened further:
+```
+             fbb
+              |
+            ITEMS 
+```
+In this case, the ITEMS node (referenced by `fbb.Properties["ITEMS"] contains a collection of the 3 items, ['FOO', 'BAR', 'BAZ']).
 
+### Optional Modifier
+Another modifier is the 'optional' modifier (? or *). These allow input to be optional. For example, changing the original grammar to:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FOO,PLUS?,BAR;
+fbb     = fb,PLUS?,BAZ;
+```
+Then the any of the following inputs will be parsed correctly:
+```
+FOO+BAR+BAZ
+FOO+BARBAZ
+FOOBAR+BAZ
+FOOBARBAZ
+```
+When an optional item is not matched, then no child is inserted into the tree.
 
-# Tokeniser
-The tokeniser uses regex expressions as rules.
-## Lexer vs Parser rules
-Lexer rules and parser rules are included in the same grammar specification. The convention
-is that lexer rules must be capitalised and parser rules must start with a lower case.
+### Many Modifier
+The 'many' modifiers (+ and *) allow a symbol to be repeated more than once. For example:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FOO+,PLUS,BAR*;
+fbb     = fb,PLUS,BAZ;
+```
+will match:
+```
+FOO+BAR+BAZ
+FOOFOO+BAR+BAZ
+FOOFOOFOO+BAR+BAZ
+FOO++BAZ
+FOO+BARBAR+BAZ
+FOO+BARBARBAR+BAZ
+```
+When a symbol is modified with the 'many' modifiers, they still occupy a single node or child property in the tree. However, the contents of the node becomes an IEnumerable which can be iterated over.
 
 ## Ordering of rules
-the order of rules is important. As the parser adopts a brute force approach, it will continue looking for matching rules until the first match.
+the order of rules is important. As the parser adopts a brute force approach, it will continue looking for matching rules until the first match. Subsequent rules will be ignored. If a failure occurs at a nested position, the parser will backtrack from the point of failure, and continue looking for matching rules. If all paths are attempted without a match, parsing of the input fails.
 
 ## Left Recursion
 This parser does not support left recursion automatically. However, it does support repeated rules.
@@ -201,18 +313,5 @@ Can be rewritten as:
 
 `a : C B*`
 
-Additionally, the rewriting rules mean that C & B can be 'joined' in the tree for improved semantics.
-
-##Lexer rules
-Lexer rules are defined using simple regex strings. Every string token in your grammar must be defined as 
-a lexer rule. 
-
-##Parser rules
-Every parser rules must consist of symbols that are either:
-a) Parser symbols
-b) Lexer symbols
-
-##Matching rules
-Rules are checked in the order they are specified. Therefore, when there is possibility
-of matching multiple rules, order is important.
+Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
