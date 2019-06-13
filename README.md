@@ -110,18 +110,76 @@ search_condition    =   OR:boolean_term, OR:search_factor*;";
 
 The above grammar specifies an 'SQL-like' grammar. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols is shown below:
 
-|Symbol  |Description                            |
-|:------:|:------------------------------------- |
-|=       |Assignment of production rule          |
-|:       |Alias/rewrite node property name       |
-|\|      |Alternate expansion                    |
-|,       |Sequence / contanenation               |
-|;       |Termination of rule                    |
-|(*...*) |Comment                                |
-|?       |Rule modifier - 0 or 1 times (optional)|
-|+       |Rule modifier - 1 or more times        |
-|*       |Rule modifier - 0 or more times        |
-|!       |Rule modifier - ignore result from ast |
+|Symbol    |Description                            |
+|:--------:|:------------------------------------- |
+|=         |Assignment of production rule          |
+|:         |Alias/rewrite node property name       |
+|\|        |Alternate expansion                    |
+|,         |Sequence / contanenation               |
+|;         |Termination of rule                    |
+|(\*...\*) |Comment                                |
+|?         |Rule modifier - 0 or 1 times (optional)|
+|+         |Rule modifier - 1 or more times        |
+|*         |Rule modifier - 0 or more times        |
+|!         |Rule modifier - ignore result from ast |
+
+## Tree Generation and Rule Modifiers
+The result of the .Parse() method is an abstract syntax tree. The structure of the tree is generally designed to be close to the grammar. for example, given a grammar:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FOO,PLUS,BAR;
+fbb     = fb,PLUS,BAZ;
+```
+and and input of:
+`FOO+BAR+BAZ`
+
+Then the string gets parsed into a tree as follows:
+```
+             fbb
+              |
+        -------------
+        |     |     |
+        fb   PLUS  BAZ
+        |
+   -----------
+   |    |    |
+  FOO  PLUS BAR
+```
+In general, a non-terminal node is represented using the `Node` class, and terminal / leaf nodes are represented using the `Token` class. The `Name` property provides the name of non-terminal nodes, and the `TokenName` property provides the name of tokens (the `TokenValue` provides the actual value of a token). This is the default behaviour withough specifying any aliases or modification rules.
+
+In the above example, FOO, PLUS, BAR, and BAZ are all represented by `Token` objects. Each `Node` object contains a `Properties` dictionary which provides access to the child nodes. By default, the key of each property is the same as the child name. Therefore, to access the input value "FOO" in the tree, you would use:
+
+`fbb.Properties["fb"].Properties["FOO"].TokenValue`
+
+Sometimes you need to manipulate the tree. The first way to manipulate the tree is by ignoring nodes. In the example above, the PLUS symbols don't really add much semantics to the tree. We can have the parser remove these completely, by changing the grammar to:
+```
+FOO     = "FOO";
+BAR     = "BAR";
+BAZ     = "BAZ";     
+PLUS    = "[+]";
+fb      = FOO,PLUS!,BAR;
+fbb     = fb,PLUS!,BAZ;
+```
+The resulting tree would be:
+```
+             fbb
+              |
+        -------------
+        |           |
+        fb         BAZ
+        |
+   -----------
+   |         |
+  FOO       BAR
+```
+
+
+### Ignoring nodes
+for example, in the above case
+
 
 
 # Tokeniser
