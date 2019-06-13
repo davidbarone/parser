@@ -134,7 +134,7 @@ fbb     = fb,PLUS,BAZ;
 and and input of:
 `FOO+BAR+BAZ`
 
-Then the string gets parsed into a tree as follows:
+Then the input gets parsed into a tree as follows:
 ```
              fbb
               |
