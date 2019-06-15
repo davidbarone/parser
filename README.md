@@ -64,26 +64,26 @@ A grammar can also be specified in a format similar to BNF/EBNF for example:
 ```
 (* Lexer Rules *)
 
-AND             = ""\bAND\b"";
-OR              = ""\bOR\b"";
-EQ_OP           = ""\bEQ\b"";
-NE_OP           = ""\bNE\b"";
-LT_OP           = ""\bLT\b"";
-LE_OP           = ""\bLE\b"";
-GT_OP           = ""\bGT\b"";
-GE_OP           = ""\bGE\b"";
-LEFT_PAREN      = ""[(]"";
-RIGHT_PAREN     = ""[)]"";
-COMMA           = "","";
-IN              = ""\b(IN)\b"";
-CONTAINS        = ""\bCONTAINS\b"";
-BETWEEN         = ""\bBETWEEN\b"";
-ISBLANK         = ""\bISBLANK\b"";
-NOT             = ""\bNOT\b"";
-LITERAL_STRING  = ""['][^']*[']"";
-LITERAL_NUMBER  = ""[+-]?((\d+(\.\d*)?)|(\.\d+))"";
-IDENTIFIER      = ""[A-Z_][A-Z_0-9]*"";
-WHITESPACE      = ""\s+"";
+AND             = "\bAND\b";
+OR              = "\bOR\b";
+EQ_OP           = "\bEQ\b";
+NE_OP           = "\bNE\b";
+LT_OP           = "\bLT\b";
+LE_OP           = "\bLE\b";
+GT_OP           = "\bGT\b";
+GE_OP           = "\bGE\b";
+LEFT_PAREN      = "[(]";
+RIGHT_PAREN     = "[)]";
+COMMA           = ",";
+IN              = "\b(IN)\b";
+CONTAINS        = "\bCONTAINS\b";
+BETWEEN         = "\bBETWEEN\b";
+ISBLANK         = "\bISBLANK\b";
+NOT             = "\bNOT\b";
+LITERAL_STRING  = "['][^']*[']";
+LITERAL_NUMBER  = "[+-]?((\d+(\.\d*)?)|(\.\d+))";
+IDENTIFIER      = "[A-Z_][A-Z_0-9]*";
+WHITESPACE      = "\s+";
 
 (*Parser Rules *)
 
@@ -234,7 +234,7 @@ Here, for the 'fb' rule, we've removed the aliases, but kept the colon (read as:
         |           |
         fb         BAZ
 ```
-In this example, the IEnumerable<Token> object has been collapsed up the tree, and is now referenced at `fbb.Properties["fb"].`.
+In this example, the IEnumerable<Token> object has been collapsed up the tree, and is now referenced at `fbb.Properties["fb"]`.
 
 *Note that a constraint exists that a rule must not contain a mixture of blank/non blank aliases. If a blank alias is specified, then ALL symbols in the rule must also have a blank alias.*
 
