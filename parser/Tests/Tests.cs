@@ -14,17 +14,72 @@ namespace Parser.Tests
 
         public abstract void DoTests();
 
-        protected void TestGrammar(string name, string grammar, bool expectFail = false)
+        /// <summary>
+        /// Executes a single test.
+        /// </summary>
+        /// <remarks>
+        /// If no input set, then only grammar is checked for correctness.
+        /// If input + productionRule set, then parsing occurs.
+        /// If visitor set, then ast is traversed, and a result is calculated.
+        /// </remarks>
+        /// <param name="name">Name of the test.</param>
+        /// <param name="grammar">The grammar used for the test.</param>
+        /// <param name="input">The input to parse.</param>
+        /// <param name="productionRule">The root production rule to use.</param>
+        /// <param name="visitor">Visitor to use to navigate ast.</param>
+        /// <param name="resultMapping">Mapping of result.</param>
+        /// <param name="expected">Expected result.</param>
+        /// <param name="expectException">The expected result.</param>
+        protected void DoTest(
+            string name,
+            string grammar,
+            string input,
+            string productionRule,
+            Visitor visitor,
+            Func<dynamic, object>resultMapping,
+            object expected, bool expectException)
         {
             TestNumber++;
-            Console.WriteLine(string.Format("[{0}] BNF Grammar Parse test: {1}", TestNumber, name));
 
+            Console.WriteLine($@"
+[{TestNumber}]: {name}");
             try
             {
                 var parser = new Parser(grammar);
-                parser.Debug = false;
                 var rules = parser.ProductionRules;
-                if (expectFail)
+
+                Console.WriteLine($@"Production rules: {rules.Count}
+Input: [{input ?? ""}]");
+
+                if (!string.IsNullOrEmpty(input))
+                {
+                    var ast = parser.Parse(input, productionRule, true);
+                    if (visitor != null)
+                    {
+                        var actual = parser.Execute(ast, visitor, resultMapping);
+
+                        // display output
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                        Console.WriteLine($"Output: [{actual}]");
+                        Console.ForegroundColor = ConsoleColor.Gray;
+
+                        if (expected!=null && !string.IsNullOrEmpty(expected.ToString()))
+                        {
+                            if (actual.Equals(expected))
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine(string.Format($"Success: actual {actual}, expected {expected}."));
+                                Console.ForegroundColor = ConsoleColor.Gray;
+                            }
+                            else
+                            {
+                                throw new Exception($"Failure: actual {actual}, expected {expected}.");
+                            }
+                        }
+                    }
+                }
+
+                if (expectException)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine(string.Format("Failure: This grammar should have failed parsing."));
@@ -41,118 +96,19 @@ namespace Parser.Tests
             }
             catch (Exception ex)
             {
-                if (!expectFail)
+                if (!expectException)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(string.Format($"Failure: This grammar has failed parsing. [{ex.Message}]"));
+                    Console.WriteLine(string.Format($"Failure: Test expected no failure, but exception thrown: [{ex.Message}]"));
                     Console.ForegroundColor = ConsoleColor.Gray;
                     Failed++;
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(string.Format($"Success: This grammar successfully failed parsing: [{ex.Message}]"));
+                    Console.WriteLine(string.Format($"Success: Test expected failure, and exception thrown: [{ex.Message}]"));
                     Console.ForegroundColor = ConsoleColor.Gray;
                     Passed++;
-                }
-            }
-        }
-
-        protected void TestVisitor(string grammar, string input, string productionRule, Visitor visitor, Func<dynamic, object>resultMapping, object expected)
-        {
-            TestNumber++;
-            try
-            {
-                var parser = new Parser(grammar);
-                Console.WriteLine(string.Format(@"
-[{3}]
-Production rules: {0}
-Input: [{1}]
-Start Production Rule: [{2}]", parser.ProductionRules.Count(), input, productionRule, TestNumber));
-
-                var ast = parser.Parse(input, productionRule, true);
-                var actual = parser.Execute(ast, visitor, resultMapping);
-                if (actual.Equals(expected))
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(string.Format($"Success: actual {actual}, expected {expected}."));
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Passed++;
-                } else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(string.Format($"Failure: actual {actual}, expected {expected}."));
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Failed++;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Test Failed: Error {ex.Message} thrown.");
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Failed++;
-            }
-        }
-
-        protected void TestParser(string grammar, string input, string productionRule, Visitor visitors = null, bool expectFailure = false)
-        {
-            TestNumber++;
-            try
-            {
-                var parser = new Parser(grammar);
-                Console.WriteLine(string.Format(@"
-[{3}]
-Production rules: {0}
-Input: [{1}]
-Start Production Rule: [{2}]
-Expect failure: {4}", parser.ProductionRules.Count(), input, productionRule, TestNumber, expectFailure));
-                var ast = parser.Parse(input, productionRule);
-                if (visitors != null)
-                {
-                    dynamic result = parser.Execute(ast, visitors);
-                    var a = result.Sql;
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine(string.Format("Output: {0}", a));
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
-
-                if (ast == null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Parsing successful, but tree is empty.");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
-
-                if (expectFailure)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Test Failed: Expected fail, got pass.");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Failed++;
-                } else
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("Test successful! (no failure)");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Passed++;
-                }
-            }
-            catch (Exception ex)
-            {
-                if (expectFailure)
-                {
-                    // Expect to get here.
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"Test successful. Error [{ex.Message}] thrown.");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Passed++;
-                } else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Test Failed: Error {ex.Message} thrown.");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Failed++;
                 }
             }
         }

@@ -11,34 +11,34 @@ namespace Parser.Tests
         public override void DoTests()
         {
             // Null / invalid grammars
-            TestGrammar("null test", null, true);
-            TestGrammar("empty string", "", true);
-            TestGrammar("space", " ", true);
-            TestGrammar("comment only", "(* JUST A COMMENT *)", true);
-            TestGrammar("invalid production rule", "this is fail", true);
-            TestGrammar("incomplete rule", @"TEST=""ABC", true);
+            DoTest("null test", null, null, null, null, null, null, true);
+            DoTest("empty string", "", null, null, null, null, null, true);
+            DoTest("space", " ", null, null, null, null, null, true);
+            DoTest("comment only", "(* JUST A COMMENT *)", null, null, null, null, null, true);
+            DoTest("invalid production rule", "this is fail", null, null, null, null, null, true);
+            DoTest("incomplete rule", @"TEST=""ABC", null, null, null, null, null, true);
 
             // Valid grammars
-            TestGrammar("Single Rule", @"SIMPLE=""X"";", false);
-            TestGrammar("Two Rules", @"SIMPLE=""X"";ANOTHER=""Y"";", false);
-            TestGrammar("Multi Line", @"
+            DoTest("Single Rule", @"SIMPLE=""X"";", null, null, null, null, null, false);
+            DoTest("Two Rules", @"SIMPLE=""X"";ANOTHER=""Y"";", null, null, null, null, null, false);
+            DoTest("Multi Line", @"
 
 (* This is a test *)
 
 SIMPLE  =   ""X"";
-ANOTHER=""Y"";", false);
-            TestGrammar("Comments", @"
+ANOTHER=""Y"";", null, null, null, null, null, false);
+            DoTest("Comments", @"
 SIMPLE=""X""; (* This is a comment *)
 (* Another comment *)
-ANOTHER=""Y"";", false);
-            TestGrammar("Lexer and Parser Rule 1", @"
+ANOTHER=""Y"";", null, null, null, null, null, false);
+            DoTest("Lexer and Parser Rule 1", @"
 SIMPLE=""X"";
 ANOTHER=""Y"";
 rule=SIMPLE;
-");
-            TestGrammar("Parser Rule 1", @"myrule=SIMPLE,ANOTHER;");
-            TestGrammar("Parser Rule with alias and modifier", @"myrule   =   TEST:SIMPLE*;");
-            TestGrammar("Parser with alternates", @"myrule    =   SIMPLE, ANOTHER | SIMPLE;");
+", null, null, null, null, null, false);
+            DoTest("Parser Rule 1", @"myrule=SIMPLE,ANOTHER;", null, null, null, null, null, false);
+            DoTest("Parser Rule with alias and modifier", @"myrule   =   TEST:SIMPLE*;", null, null, null, null, null, false);
+            DoTest("Parser with alternates", @"myrule    =   SIMPLE, ANOTHER | SIMPLE;", null, null, null, null, null, false);
         }
     }
 }

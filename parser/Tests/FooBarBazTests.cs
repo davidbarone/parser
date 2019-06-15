@@ -11,15 +11,15 @@ namespace Parser.Tests
     {
         public override void DoTests()
         {
-            TestVisitor(FooBarBazGrammar, "FOO", "fbb", FooBarBazVisitor, (d) => d.items.Count, 1);
-            TestVisitor(FooBarBazGrammar, "FOOBAR", "fbb", FooBarBazVisitor, (d) => d.items.Count, 2);
-            TestVisitor(FooBarBazGrammar, "FOOBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3);
-            TestVisitor(FooBarBazGrammar, "FOOBARBAZBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 4);
-            TestVisitor(FooBarBazGrammar, "FOOBARBAZBAZBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 5);
-            TestVisitor(FooBarBazGrammar, "FOOBARBAR", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3);
-            TestVisitor(FooBarBazGrammar, "FOOBARBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 4);
-            TestVisitor(FooBarBazGrammar, "FOOBARBARBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 5);
-            TestVisitor(FooBarBazGrammar, "FOOBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3);
+            DoTest("FOOBARBAZ1", FooBarBazGrammar, "FOO", "fbb", FooBarBazVisitor, (d) => d.items.Count, 1, false);
+            DoTest("FOOBARBAZ2", FooBarBazGrammar, "FOOBAR", "fbb", FooBarBazVisitor, (d) => d.items.Count, 2, false);
+            DoTest("FOOBARBAZ3", FooBarBazGrammar, "FOOBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3, false);
+            DoTest("FOOBARBAZ4", FooBarBazGrammar, "FOOBARBAZBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 4, false);
+            DoTest("FOOBARBAZ5", FooBarBazGrammar, "FOOBARBAZBAZBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 5, false);
+            DoTest("FOOBARBAZ6", FooBarBazGrammar, "FOOBARBAR", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3, false);
+            DoTest("FOOBARBAZ7", FooBarBazGrammar, "FOOBARBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 4, false);
+            DoTest("FOOBARBAZ8", FooBarBazGrammar, "FOOBARBARBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 5, false);
+            DoTest("FOOBARBAZ9", FooBarBazGrammar, "FOOBARBAZ", "fbb", FooBarBazVisitor, (d) => d.items.Count, 3, false);
         }
 
         public string FooBarBazGrammar => @"

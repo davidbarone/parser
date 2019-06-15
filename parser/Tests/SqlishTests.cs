@@ -12,53 +12,55 @@ namespace Parser.Tests
     {
         public override void DoTests()
         {
+            Func<dynamic, object> resultMapping = (d) => d.Sql;
+
             // Check the Sqlist grammar
-            TestGrammar("Sqlish Grammar", this.SqlishGrammar);
+            DoTest("Sqlish Grammar", this.SqlishGrammar, null, null, null, null, null, false);
 
             // Success
-            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "MY_LIST IN ('abc')", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, null, "search_condition", null, false);
-            TestParser(this.SqlishGrammar, "", "search_condition", null, false);
-            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "FIELD_1 EQ 123", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "MY_LIST IN ('abc','mno','xyz')", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH1", this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH2", this.SqlishGrammar, "MY_LIST IN ('abc')", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH3", this.SqlishGrammar, null, "search_condition", null, resultMapping, null, false);
+            DoTest("SQLISH4", this.SqlishGrammar, "", "search_condition", null, resultMapping, null, false);
+            DoTest("SQLISH5", this.SqlishGrammar, "FIELD_1 EQ '123'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH6", this.SqlishGrammar, "FIELD_1 EQ 123", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH7", this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH8", this.SqlishGrammar, "FIELD_1 EQ '123' AND FIELD_2 GT 123 AND FIELD_3 EQ 'XYZ'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH9", this.SqlishGrammar, "FISCAL_YEAR EQ 2018 AND FISCAL_PERIOD EQ 12 AND FISCAL_WEEK EQ 4 AND FORECAST_PERIOD EQ 201812", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH10", this.SqlishGrammar, "MY_LIST IN ('abc','mno','xyz')", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // Using an identifier starting with same characters as another token ('LE')
-            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH11", this.SqlishGrammar, "LEVEL_1 LE '123'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH12", this.SqlishGrammar, "LEVEL_1 LE '123' OR FISCAL_PERIOD EQ 12", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH13", this.SqlishGrammar, "LEVEL_1 LE '123' AND FISCAL_PERIOD EQ 12 AND FORECAST_PERIOD NE 201812 OR MY_FIELD EQ '123'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // BETWEEN / NOT  BETWEEN
-            TestParser(this.SqlishGrammar, "LEVEL_1 BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH14", this.SqlishGrammar, "LEVEL_1 BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH15", this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH16", this.SqlishGrammar, "LEVEL_1 NOT BETWEEN '123' AND '456' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // CONTAINS / NOT CONTAINS
-            TestParser(this.SqlishGrammar, "LEVEL_1 CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH17", this.SqlishGrammar, "LEVEL_1 CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH18", this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO'", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH19", this.SqlishGrammar, "LEVEL_1 NOT CONTAINS 'HELLO' AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // ISBLANK / ISNOTBLANK
-            TestParser(this.SqlishGrammar, "LEVEL_1 ISBLANK", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT ISBLANK", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH20", this.SqlishGrammar, "LEVEL_1 ISBLANK", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH21", this.SqlishGrammar, "LEVEL_1 NOT ISBLANK", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH22", this.SqlishGrammar, "LEVEL_1 NOT ISBLANK AND LEVEL_2 GT 2", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // Parens
-            TestParser(this.SqlishGrammar, "(LEVEL_1 ISBLANK)", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "search_condition", this.SqlishVisitor, false);
-            TestParser(this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 ISBLANK) OR (LEVEL_4 NOT IN (1,2,3) AND LEVEL_5 CONTAINS 'TEST'))", "search_condition", this.SqlishVisitor, false);
+            DoTest("SQLISH23", this.SqlishGrammar, "(LEVEL_1 ISBLANK)", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH24", this.SqlishGrammar, "(LEVEL_1 ISBLANK AND LEVEL_2 EQ '2')", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH25", this.SqlishGrammar, "(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH26", this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123))", "search_condition", this.SqlishVisitor, resultMapping, null, false);
+            DoTest("SQLISH27", this.SqlishGrammar, "MY_FIELD EQ 'ZZZ' AND ((LEVEL_2 EQ '2' AND LEVEL_3 ISBLANK) OR (LEVEL_4 NOT IN (1,2,3) AND LEVEL_5 CONTAINS 'TEST'))", "search_condition", this.SqlishVisitor, resultMapping, null, false);
 
             // Failure
-            TestParser(this.SqlishGrammar, "FIELD", "comparison predicate", this.SqlishVisitor, true);
-            TestParser(this.SqlishGrammar, "FIELD GT 123 AND", "comparison predicate", this.SqlishVisitor, true);
-            TestParser(this.SqlishGrammar, "FIELD", "search_condition", this.SqlishVisitor, true);
-            TestParser(this.SqlishGrammar, "FIELD GT 123 AND", "search_condition", this.SqlishVisitor, true);
+            DoTest("SQLISH28", this.SqlishGrammar, "FIELD", "comparison predicate", this.SqlishVisitor, resultMapping, null, true);
+            DoTest("SQLISH29", this.SqlishGrammar, "FIELD GT 123 AND", "comparison predicate", this.SqlishVisitor, resultMapping, null, true);
+            DoTest("SQLISH30", this.SqlishGrammar, "FIELD", "search_condition", this.SqlishVisitor, resultMapping, null, true);
+            DoTest("SQLISH31", this.SqlishGrammar, "FIELD GT 123 AND", "search_condition", this.SqlishVisitor, resultMapping, null, true);
         }
 
         /// <summary>
