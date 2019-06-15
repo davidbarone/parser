@@ -20,6 +20,10 @@ namespace Parser
             var tests2 = new SqlishTests();
             tests2.DoTests();
 
+            var tests3 = new FooBarBazTests();
+            tests3.DoTests();
+
+            Console.WriteLine();
             Console.WriteLine("Summary:");
             Console.WriteLine("--------");
             Console.ForegroundColor = ConsoleColor.Green;

@@ -58,17 +58,54 @@ namespace Parser.Tests
             }
         }
 
+        protected void TestVisitor(string grammar, string input, string productionRule, Visitor visitor, Func<dynamic, object>resultMapping, object expected)
+        {
+            TestNumber++;
+            try
+            {
+                var parser = new Parser(grammar);
+                Console.WriteLine(string.Format(@"
+[{3}]
+Production rules: {0}
+Input: [{1}]
+Start Production Rule: [{2}]", parser.ProductionRules.Count(), input, productionRule, TestNumber));
+
+                var ast = parser.Parse(input, productionRule, true);
+                var actual = parser.Execute(ast, visitor, resultMapping);
+                if (actual.Equals(expected))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(string.Format($"Success: actual {actual}, expected {expected}."));
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Passed++;
+                } else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(string.Format($"Failure: actual {actual}, expected {expected}."));
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Failed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Test Failed: Error {ex.Message} thrown.");
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Failed++;
+            }
+        }
+
         protected void TestParser(string grammar, string input, string productionRule, Visitor visitors = null, bool expectFailure = false)
         {
             TestNumber++;
             try
             {
                 var parser = new Parser(grammar);
-                Console.WriteLine(string.Format(@"[{3}]
+                Console.WriteLine(string.Format(@"
+[{3}]
 Production rules: {0}
 Input: [{1}]
-Start Production Rule
-[{2}]
+Start Production Rule: [{2}]
 Expect failure: {4}", parser.ProductionRules.Count(), input, productionRule, TestNumber, expectFailure));
                 var ast = parser.Parse(input, productionRule);
                 if (visitors != null)

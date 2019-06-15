@@ -104,14 +104,19 @@ namespace Parser
                 if (!string.IsNullOrEmpty(name))
                 {
                     if (isEnumerated)
-                        ((IList<object>)resultAsNode.Properties[name]).Add(value);
+                    {
+                        resultAsNode.Properties[name] = resultAsNode.Properties[name].Union(value);
+                    }
                     else
                         resultAsNode.Properties[name] = value;
                 }
                 else
                 {
                     if (isEnumerated)
-                        ((IList<object>)result).Add(value);
+                    {
+                        var obj = Results.Pop();
+                        Results.Push(obj.Union(value));
+                    }
                     else
                     {
                         Results.Pop();

@@ -137,7 +137,6 @@ namespace Parser
                     ok = true;
                     if (!this.Ignore)
                         context.UpdateResult(this.Alias, token);
-                    break;
                 }
                 // check to see if the symbol a pointer to another production rule?
                 // if so, add new item onto stack.
@@ -148,6 +147,10 @@ namespace Parser
                         .ProductionRules
                         .Where(r=>r.RuleType==RuleType.ParserRule)
                         .Where(r => r.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
+
+                    if (!rules.Any())
+                        break;
+
                     foreach (var rule in rules)
                     {
                         object obj = null;
@@ -178,7 +181,7 @@ namespace Parser
             }
 
             // return true if match (at least once).
-            var success = ok || once;
+            var success = ok || once || Optional;
             if (Debug)
             {
                 if (success)
