@@ -111,6 +111,7 @@ namespace Parser
             // Rule is non terminal
             foreach (var symbol in this.Symbols)
             {
+                symbol.Debug = this.Debug;
                 if (symbol.Optional && context.TokenEOF)
                     break;
                 else if (context.TokenEOF)

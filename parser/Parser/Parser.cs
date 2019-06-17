@@ -192,7 +192,9 @@ namespace Parser
         /// WHen set to true, provides additional debugging information.
         /// </summary>
         public bool Debug { get; set; }
-        
+
+        private IList<ProductionRule> _productionRules = null;
+
         /// <summary>
         /// Returns the production rules list.
         /// </summary>
@@ -205,23 +207,25 @@ namespace Parser
                     throw new Exception("grammar specification is empty.");
                 }
 
+                if (_productionRules != null)
+                    return _productionRules;
                 else if (!string.IsNullOrEmpty(this.Grammar))
                 {
                     Parser parser = new Parser(this.BNFGrammar, "COMMENT", "NEWLINE");
-                    parser.Debug = this.Debug;
                     var tokens = parser.Tokenise(this.Grammar);
                     var ast = parser.Parse(this.Grammar, "grammar");
-                    return (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d)=>d.ProductionRules);
+                    _productionRules = (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d)=>d.ProductionRules);
+                    return _productionRules;
                 }
                 else
                 {
-                    List<ProductionRule> rules = new List<ProductionRule>();
+                    _productionRules = new List<ProductionRule>();
                     foreach (var pr in this.productionRules)
                     {
                         pr.Debug = this.Debug;
-                        rules.Add(pr);
+                        _productionRules.Add(pr);
                     }
-                    return rules;
+                    return _productionRules;
                 }
             }
         }
@@ -291,6 +295,7 @@ namespace Parser
             // try each rule. Use the first rule which succeeds.
             foreach (var rule in rules)
             {
+                rule.Debug = this.Debug;
                 ParserContext context = new ParserContext(ProductionRules, tokens);
                 object obj = null;
                 var ok = rule.Parse(context, out obj);

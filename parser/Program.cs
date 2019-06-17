@@ -14,6 +14,9 @@ namespace Parser
     {
         static void Main(string[] args)
         {
+            var tests4 = new ExpressionTests();
+            tests4.DoTests();
+            /*
             var tests1 = new ProductionRuleTests();
             tests1.DoTests();
 
@@ -22,7 +25,7 @@ namespace Parser
 
             var tests3 = new FooBarBazTests();
             tests3.DoTests();
-
+            */
             Console.WriteLine();
             Console.WriteLine("Summary:");
             Console.WriteLine("--------");

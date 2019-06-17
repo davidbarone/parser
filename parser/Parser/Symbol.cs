@@ -153,6 +153,7 @@ namespace Parser
 
                     foreach (var rule in rules)
                     {
+                        rule.Debug = this.Debug;
                         object obj = null;
                         ok = rule.Parse(context, out obj);
                         if (ok)
