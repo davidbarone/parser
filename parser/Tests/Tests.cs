@@ -46,7 +46,6 @@ namespace Parser.Tests
             try
             {
                 var parser = new Parser(grammar);
-                parser.Debug = true;
                 var rules = parser.ProductionRules;
 
                 Console.WriteLine($@"Production rules: {rules.Count}
