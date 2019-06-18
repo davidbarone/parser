@@ -31,13 +31,13 @@ namespace Parser.Tests
         }
 
         public string ExpressionGrammar => @"
-NUMBER_LITERAL  = ""\b\d+\b"";
-PLUS_OP         = ""[\+]"";
-MINUS_OP        = ""[\-]"";
+NUMBER_LITERAL  = ""\d+"";
+PLUS_OP         = ""\+"";
+MINUS_OP        = ""\-"";
 MUL_OP          = ""\*"";
-DIV_OP          = ""[\/]"";
-LPAREN         = ""[\(]"";
-RPAREN         = ""[\)]"";
+DIV_OP          = ""\/"";
+LPAREN         = ""\("";
+RPAREN         = ""\)"";
 
 expression      = minus_plus_expr | term;
 minus_plus_expr = TERMS:term, TERMS:minus_plus_expr_*;
