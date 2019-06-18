@@ -7,13 +7,8 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public class ExpressionTests : Tests
+    public class ExpressionTests : AbstractTests
     {
-        /*
-         stack overflow 
-        http://codeability.blogspot.com/2012/04/chapter-6-syntax.html
-            */
-
         public override void DoTests()
         {
             DoTest("EXPR_1", ExpressionGrammar, "4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
@@ -22,16 +17,17 @@ namespace Parser.Tests
             DoTest("EXPR_4", ExpressionGrammar, "1+2+3+4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 10, false);
             DoTest("EXPR_5", ExpressionGrammar, "2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
             DoTest("EXPR_6", ExpressionGrammar, "1+2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 7, false);
-            DoTest("EXPR_6", ExpressionGrammar, "(1+2)*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 9, false);
-            DoTest("EXPR_7", ExpressionGrammar, "2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), -6, false);
-            DoTest("EXPR_8", ExpressionGrammar, "-2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
-            DoTest("EXPR_9", ExpressionGrammar, "3*4+5*6", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 42, false);
-            DoTest("EXPR_10", ExpressionGrammar, "7-4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 3, false);
-            DoTest("EXPR_11", ExpressionGrammar, "10-3+2", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 9, false);
-            DoTest("EXPR_12", ExpressionGrammar, "10-2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 24, false);
-            DoTest("EXPR_13", ExpressionGrammar, "10--2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 36, false);
-            DoTest("EXPR_13", ExpressionGrammar, "10+8/2-2*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
-            DoTest("EXPR_13", ExpressionGrammar, "((((1+7)/(3-1))/2)*(5+2)+(-7+15)-(-2*-4))", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 14, false);
+            DoTest("EXPR_7", ExpressionGrammar, "(1+2)*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 9, false);
+            DoTest("EXPR_8", ExpressionGrammar, "2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), -6, false);
+            DoTest("EXPR_9", ExpressionGrammar, "-2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
+            DoTest("EXPR_10", ExpressionGrammar, "3*4+5*6", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 42, false);
+            DoTest("EXPR_11", ExpressionGrammar, "7-4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 3, false);
+            DoTest("EXPR_12", ExpressionGrammar, "10-3+2", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 9, false);
+            DoTest("EXPR_13", ExpressionGrammar, "10-2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 24, false);
+            DoTest("EXPR_14", ExpressionGrammar, "10--2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 36, false);
+            DoTest("EXPR_15", ExpressionGrammar, "10+8/2-2*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
+            DoTest("EXPR_16", ExpressionGrammar, "((((1+7)/(3-1))/2)*(5+2)+(-7+15)-(-2*-4))", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 14, false);
+            DoTest("EXPR_17", ExpressionGrammar, "6*2/3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
         }
 
         public string ExpressionGrammar => @"

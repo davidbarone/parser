@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public class SqlishTests : Tests
+    public class SqlishTests : AbstractTests
     {
         public override void DoTests()
         {

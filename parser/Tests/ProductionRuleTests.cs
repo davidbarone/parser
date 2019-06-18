@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public class ProductionRuleTests : Tests
+    public class ProductionRuleTests : AbstractTests
     {
         public override void DoTests()
         {

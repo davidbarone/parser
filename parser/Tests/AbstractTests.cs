@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public abstract class Tests
+    public abstract class AbstractTests
     {
         public static int TestNumber = 0;
         public static int Passed = 0;

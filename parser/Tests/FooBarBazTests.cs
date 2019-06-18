@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Parser.Tests
 {
-    public class FooBarBazTests : Tests
+    public class FooBarBazTests : AbstractTests
     {
         public override void DoTests()
         {
