@@ -16,12 +16,20 @@ namespace Parser.Tests
 
         public override void DoTests()
         {
-            DoTest("EXPR_1", ExpressionGrammar, "9+9", "expression", ExpressionVisitor, (d)=>(int)d.Stack.Pop(), 18, false);
-            DoTest("EXPR_2", ExpressionGrammar, "1+2+3+4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 10, false);
-            DoTest("EXPR_3", ExpressionGrammar, "2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
-            DoTest("EXPR_4", ExpressionGrammar, "1+2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 7, false);
-            DoTest("EXPR_5", ExpressionGrammar, "2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), -6, false);
-            DoTest("EXPR_6", ExpressionGrammar, "-2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
+            DoTest("EXPR_1", ExpressionGrammar, "4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
+            DoTest("EXPR_2", ExpressionGrammar, "-4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), -4, false);
+            DoTest("EXPR_3", ExpressionGrammar, "9+9", "expression", ExpressionVisitor, (d)=>(int)d.Stack.Pop(), 18, false);
+            DoTest("EXPR_4", ExpressionGrammar, "1+2+3+4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 10, false);
+            DoTest("EXPR_5", ExpressionGrammar, "2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
+            DoTest("EXPR_6", ExpressionGrammar, "1+2*3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 7, false);
+            DoTest("EXPR_7", ExpressionGrammar, "2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), -6, false);
+            DoTest("EXPR_8", ExpressionGrammar, "-2*-3", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 6, false);
+            DoTest("EXPR_9", ExpressionGrammar, "3*4+5*6", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 42, false);
+            DoTest("EXPR_10", ExpressionGrammar, "7-4", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 3, false);
+            DoTest("EXPR_11", ExpressionGrammar, "10-3+2", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 9, false);
+            DoTest("EXPR_12", ExpressionGrammar, "10-2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 24, false);
+            DoTest("EXPR_13", ExpressionGrammar, "10--2*3+4*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 36, false);
+            DoTest("EXPR_13", ExpressionGrammar, "10+8/2-2*5", "expression", ExpressionVisitor, (d) => (int)d.Stack.Pop(), 4, false);
         }
 
         public string ExpressionGrammar => @"
@@ -33,16 +41,15 @@ DIV_OP          = ""[\/]"";
 LPARENS         = ""[\(]"";
 RPARENS         = ""[\)]"";
 
-expression      = term | plus_expr | minus_expr;
-minus_expr      = TERMS:term, TERMS:minus_expr_*;
-minus_expr_     = MINUS_OP!, :term;
-plus_expr       = TERMS:term, TERMS:plus_expr_*;
-plus_expr_      = PLUS_OP!, :term;
-term            = mul_term | div_term | factor;
-mul_term        = FACTORS:factor, FACTORS:mul_term_*;
-mul_term_       = MUL_OP!, :factor;
-div_term        = FACTORS:factor, FACTORS:div_term_*;
-div_term_       = DIV_OP!, :factor;
+expression      = minus_plus_expr | term;
+minus_plus_expr = TERMS:term, TERMS:minus_plus_expr_*;
+minus_plus_expr_
+                = OP:MINUS_OP, term | OP:PLUS_OP, term;
+
+term            = mul_div_term | factor;
+mul_div_term    = FACTORS:factor, FACTORS:mul_div_term_*;
+mul_div_term_   = OP:DIV_OP, factor | OP:MUL_OP, factor;
+
 factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
 primary         = NUMBER_LITERAL;";
 
@@ -66,17 +73,42 @@ primary         = NUMBER_LITERAL;";
                 );
 
                 visitor.AddVisitor(
-                    "plus_expr",
+                    "minus_plus_expr",
                     (v, n) =>
                     {
                         int sum = 0;
                         var nodes = (IEnumerable<Object>)n.Properties["TERMS"];
-                        foreach (var node in nodes)
+                        foreach (var item in nodes)
                         {
-                            ((Node)node).Accept(v);
-                            sum = sum + (int)v.State.Stack.Pop();
+                            var node = ((Node)item);
+                            node.Accept(v);
+
+                            if (!node.Properties.ContainsKey("OP"))
+                            {
+                                sum = (int)v.State.Stack.Pop();
+                            } else
+                            {
+                                var sign = ((Token)node.Properties["OP"]).TokenValue;
+                                if (sign == "+")
+                                {
+                                    sum = sum + (int)v.State.Stack.Pop();
+                                }
+                                else
+                                {
+                                    sum = sum - (int)v.State.Stack.Pop();
+                                }
+                            }
                         }
                         v.State.Stack.Push(sum);
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "minus_plus_expr_",
+                    (v, n) =>
+                    {
+                        var node = n.Properties["term"] as Node;
+                        node.Accept(v);
                     }
                 );
 
@@ -85,6 +117,47 @@ primary         = NUMBER_LITERAL;";
                     (v, n) =>
                     {
                         var node = n.Properties.Values.First() as Node;
+                        node.Accept(v);
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "mul_div_term",
+                    (v, n) =>
+                    {
+                        int sum = 0;
+                        var nodes = (IEnumerable<Object>)n.Properties["FACTORS"];
+                        foreach (var item in nodes)
+                        {
+                            var node = ((Node)item);
+                            node.Accept(v);
+
+                            if (!node.Properties.ContainsKey("OP"))
+                            {
+                                sum = (int)v.State.Stack.Pop();
+                            }
+                            else
+                            {
+                                var sign = ((Token)node.Properties["OP"]).TokenValue;
+                                if (sign == "*")
+                                {
+                                    sum = sum * (int)v.State.Stack.Pop();
+                                }
+                                else
+                                {
+                                    sum = sum / (int)v.State.Stack.Pop();
+                                }
+                            }
+                        }
+                        v.State.Stack.Push(sum);
+                    }
+                );
+
+                visitor.AddVisitor(
+                    "mul_div_term_",
+                    (v, n) =>
+                    {
+                        var node = n.Properties["factor"] as Node;
                         node.Accept(v);
                     }
                 );
