@@ -32,7 +32,10 @@ namespace Parser
 
         public Token PeekToken()
         {
-            return Tokens[CurrentTokenIndex];
+            if (CurrentTokenIndex >= Tokens.Count())
+                return new Token { TokenName = "<EOF>", TokenValue = "<EOF>" };
+            else
+                return Tokens[CurrentTokenIndex];
         }
 
         public void PushResult(object value)
@@ -53,8 +56,7 @@ namespace Parser
         {
             get
             {
-                return CurrentTokenIndex == Tokens.Count();
-
+                return CurrentTokenIndex >= Tokens.Count();
             }
         }
 
@@ -73,7 +75,7 @@ namespace Parser
         public Token TryToken(string tokenName)
         {
             if (CurrentTokenIndex >= Tokens.Count)
-                throw new Exception("End of file.");
+                throw new Exception("Unexpected EOF.");
             if (tokenName.Equals(Tokens[CurrentTokenIndex].TokenName, StringComparison.OrdinalIgnoreCase))
             {
                 var token = Tokens[CurrentTokenIndex];

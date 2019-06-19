@@ -45,7 +45,7 @@ namespace Parser.Tests
 [{TestNumber}]: {name}");
             try
             {
-                var parser = new Parser(grammar);
+                var parser = new Parser(grammar, productionRule);
                 var rules = parser.ProductionRules;
 
                 Console.WriteLine($@"Production rules: {rules.Count}
@@ -53,7 +53,7 @@ Input: [{input ?? ""}]");
 
                 if (!string.IsNullOrEmpty(input))
                 {
-                    var ast = parser.Parse(input, productionRule, true);
+                    var ast = parser.Parse(input, true);
                     if (visitor != null)
                     {
                         var actual = parser.Execute(ast, visitor, resultMapping);

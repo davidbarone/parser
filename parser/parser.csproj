@@ -57,6 +57,7 @@
     <Compile Include="Tests\AbstractTests.cs" />
     <Compile Include="Tests\ExpressionTests.cs" />
     <Compile Include="Tests\FooBarBazTests.cs" />
+    <Compile Include="Tests\LeftRecursionTests.cs" />
     <Compile Include="Tests\ProductionRuleTests.cs" />
     <Compile Include="Tests\SqlishTests.cs" />
   </ItemGroup>

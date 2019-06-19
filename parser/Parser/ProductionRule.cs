@@ -21,6 +21,16 @@ namespace Parser
             });
         }
 
+        public ProductionRule(string name, params Symbol[] symbols)
+        {
+            this.Name = name;
+            this.Symbols = new List<Symbol>();
+            foreach (var symbol in symbols)
+            {
+                this.Symbols.Add(symbol);
+            }
+        }
+
         public bool Debug { get; set; }
 
         /// <summary>
@@ -103,8 +113,7 @@ namespace Parser
             if (Debug)
             {
                 Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"-----------------------------------------------------------");
-                Console.WriteLine($"[ProductionRule.Parse()] {this.Name} - Pushing new result to stack.");
+                Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count()-1)}START [ProductionRule.Parse()] {this.Name} - Pushing new result to stack.");
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
 
@@ -113,9 +122,7 @@ namespace Parser
             {
                 symbol.Debug = this.Debug;
                 if (symbol.Optional && context.TokenEOF)
-                    break;
-                else if (context.TokenEOF)
-                    throw new Exception("Unexpected EOF");
+                    continue;
 
                 var ok = symbol.Parse(context);
 
@@ -136,7 +143,7 @@ namespace Parser
                 if (Debug)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine($"[ProductionRule.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
+                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [ProductionRule.Parse()] {this.Name} Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 return true;
@@ -146,7 +153,7 @@ namespace Parser
                 if (Debug)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine($"[ProductionRule.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
+                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [ProductionRule.Parse()] {this.Name} Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 context.CurrentTokenIndex = temp;
@@ -199,6 +206,12 @@ namespace Parser
                 throw new Exception("Cannot mix blank and non-blank aliases.");
 
             return ret;
+        }
+
+        public override string ToString()
+        {
+            var symbols = string.Join(", ", this.Symbols);
+            return $"{this.Name} = {symbols};";
         }
     }
 }

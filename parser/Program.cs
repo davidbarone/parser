@@ -26,6 +26,9 @@ namespace Parser
             var tests4 = new ExpressionTests();
             tests4.DoTests();
 
+            var tests5 = new LeftRecursionTests();
+            tests5.DoTests();
+
             Console.WriteLine();
             Console.WriteLine("Summary:");
             Console.WriteLine("--------");

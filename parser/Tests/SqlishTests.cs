@@ -14,6 +14,7 @@ namespace Parser.Tests
         {
             Func<dynamic, object> resultMapping = (d) => d.Sql;
 
+
             // Check the Sqlist grammar
             DoTest("Sqlish Grammar", this.SqlishGrammar, null, null, null, null, null, false);
 

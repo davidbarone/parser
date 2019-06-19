@@ -119,7 +119,7 @@ namespace Parser
             if (Debug)
             {
                 Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($@"[Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - ""{context.PeekToken().TokenValue}""]");
+                Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}START [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]");
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
 
@@ -127,57 +127,75 @@ namespace Parser
             int temp = context.CurrentTokenIndex;
             bool ok = false;
             var once = false;
-            while (true && !context.TokenEOF)
+
+            // Special epsilon token matches no string, so just return success
+            // immediately, without even trying the next token.
+            if (this.Name == "ε")
             {
-                var token = context.TryToken(this.Name);
-
-                if (token != null)
+                return true;
+            }
+            else if (this.Optional && context.TokenEOF)
+            {
+                return true;
+            }
+            else
+            {
+                while (true)
                 {
-                    // terminal
-                    ok = true;
-                    if (!this.Ignore)
-                        context.UpdateResult(this.Alias, token);
-                }
-                // check to see if the symbol a pointer to another production rule?
-                // if so, add new item onto stack.
-                else
-                {
-                    // non terminal
-                    var rules = context
-                        .ProductionRules
-                        .Where(r=>r.RuleType==RuleType.ParserRule)
-                        .Where(r => r.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
-
-                    if (!rules.Any())
-                        break;
-
-                    foreach (var rule in rules)
+                    Token token = null;
+                    if (!context.TokenEOF)
                     {
-                        rule.Debug = this.Debug;
-                        object obj = null;
-                        ok = rule.Parse(context, out obj);
-                        if (ok)
-                        {
-                            if (!this.Ignore)
-                                context.UpdateResult(this.Alias, obj);
+                        token = context.TryToken(this.Name);
+                    }
+                    
+                    if (token != null)
+                    {
+                        // terminal
+                        ok = true;
+                        if (!this.Ignore)
+                            context.UpdateResult(this.Alias, token);
+                    }
+                    // check to see if the symbol a pointer to another production rule?
+                    // if so, add new item onto stack.
+                    else
+                    {
+                        // non terminal
+                        var rules = context
+                            .ProductionRules
+                            .Where(r => r.RuleType == RuleType.ParserRule)
+                            .Where(r => r.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
+
+                        if (!rules.Any())
                             break;
+
+                        foreach (var rule in rules)
+                        {
+                            rule.Debug = this.Debug;
+                            object obj = null;
+                            ok = rule.Parse(context, out obj);
+                            if (ok)
+                            {
+                                if (!this.Ignore)
+                                    context.UpdateResult(this.Alias, obj);
+                                break;
+                            }
                         }
                     }
-                }
 
-                // wind back the token index if the symbol did not match tokens.
-                //Console.WriteLine(string.Format("OK = {0}", ok));
-                if (ok)
-                {
-                    once = true;
-                    if (!Many)
+                    // wind back the token index if the symbol did not match tokens.
+                    //Console.WriteLine(string.Format("OK = {0}", ok));
+                    if (ok)
+                    {
+                        once = true;
+                        if (!Many)
+                            break;
+                    }
+                    else
+                    {
+                        if (!once)
+                            context.CurrentTokenIndex = temp;
                         break;
-                }
-                else
-                {
-                    if (!once)
-                        context.CurrentTokenIndex = temp;
-                    break;
+                    }
                 }
             }
 
@@ -189,20 +207,27 @@ namespace Parser
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     if (once)
-                        Console.WriteLine($"[Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success (once)");
+                        Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success (once)");
                     else
-                        Console.WriteLine($"[Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
+                        Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"[Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
+                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
             }
 
             return success;
+        }
+
+        public override string ToString()
+        {
+            var alias = Alias != Name ? $"{Alias}:" : "";
+            var modifier = Ignore ? "!" : (Optional && !Many ? "?" : (Optional && Many ? "*" : (Many ? "+" : "")));
+            return $"{alias}{Name}{modifier}";
         }
     }
 }
