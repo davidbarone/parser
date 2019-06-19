@@ -62,15 +62,6 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                 var visitor = new Visitor(state);
 
                 visitor.AddVisitor(
-                    "expression",
-                    (v, n) =>
-                    {
-                        var node = n.Properties.Values.First() as Node;
-                        node.Accept(v);
-                    }
-                );
-
-                visitor.AddVisitor(
                     "minus_plus_expr",
                     (v, n) =>
                     {
@@ -98,24 +89,6 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                             }
                         }
                         v.State.Stack.Push(sum);
-                    }
-                );
-
-                visitor.AddVisitor(
-                    "minus_plus_expr_",
-                    (v, n) =>
-                    {
-                        var node = n.Properties["term"] as Node;
-                        node.Accept(v);
-                    }
-                );
-
-                visitor.AddVisitor(
-                    "term",
-                    (v, n) =>
-                    {
-                        var node = n.Properties.Values.First() as Node;
-                        node.Accept(v);
                     }
                 );
 
@@ -148,15 +121,6 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                             }
                         }
                         v.State.Stack.Push(sum);
-                    }
-                );
-
-                visitor.AddVisitor(
-                    "mul_div_term_",
-                    (v, n) =>
-                    {
-                        var node = n.Properties["factor"] as Node;
-                        node.Accept(v);
                     }
                 );
 

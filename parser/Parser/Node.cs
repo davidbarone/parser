@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Parser
 {
     /// <summary>
-    /// Represents a non-leaf node of the AST.
+    /// Represents a non-leaf node of the abstract syntax tree.
     /// </summary>
     public class Node
     {
@@ -27,7 +27,7 @@ namespace Parser
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
 
         /// <summary>
-        /// Enables processing of this node.
+        /// Accepts a visitor on this node.
         /// </summary>
         /// <param name="v"></param>
         public void Accept(Visitor v)

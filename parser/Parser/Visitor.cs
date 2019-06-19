@@ -31,6 +31,33 @@ namespace Parser
         public dynamic State = null;
 
         /// <summary>
+        /// Default visitor which simply cascades through all properties
+        /// calling the Visit() method recursively.
+        /// </summary>
+        /// <param name="v">The visitor.</param>
+        /// <param name="n">The current node.</param>
+        private void DefaultVisitor(Visitor v, Node n)
+        {
+            foreach (var key in n.Properties.Keys)
+            {
+                var item = n.Properties[key];
+                var itemAsNode = item as Node;
+                var itemAsIEnumerable = item as IEnumerable<Object>;
+                if (itemAsNode != null)
+                    itemAsNode.Accept(v);
+                else if (itemAsIEnumerable != null)
+                {
+                    foreach (var obj in itemAsIEnumerable)
+                    {
+                        var objAsNode = obj as Node;
+                        if (objAsNode != null)
+                            objAsNode.Accept(v);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A collection of routines that can process single node types within the abstract syntax tree.
         /// </summary>
         Dictionary<string, Action<Visitor, Node>> Visitors { get; set; }
@@ -53,10 +80,14 @@ namespace Parser
         {
             var name = node.Name;
             var visitor = this.Visitors.Keys.FirstOrDefault(k => k.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (visitor == null)
-                throw new Exception(string.Format("Visitor not found for '{0}'!", name));
-
-            Visitors[visitor](this, node);
+            if (visitor == null) {
+                //throw new Exception(string.Format("Visitor not found for '{0}'!", name));
+                DefaultVisitor(this, node);
+            }
+            else
+            {
+                Visitors[visitor](this, node);
+            }
         }
     }
 }
