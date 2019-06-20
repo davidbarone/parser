@@ -13,17 +13,36 @@ namespace Parser
     /// </summary>
     public class Parser
     {
+        /// <summary>
+        /// External specification of the grammar.
+        /// </summary>
         private string Grammar { get; set; }
+
+        /// <summary>
+        /// Starting non-terminal rule for grammar.
+        /// </summary>
         private string RootProductionRule { get; set; }
-        private IList<ProductionRule> productionRules { get; set; } // Raw production rules specified by user
-        private IList<ProductionRule> _productionRules = null;      // modified production rules (e.g. removing left r
+        
+        /// <summary>
+        /// Internal representation of the grammar.
+        /// </summary>
+        private IList<ProductionRule> productionRules { get; set; }
+
+        public IList<ProductionRule> ProductionRules => productionRules;
+
+        /// <summary>
+        /// List of tokens to be ignored by tokeniser. Typically comment tokens.
+        /// </summary>
         private List<string> IgnoreTokens { get; set; }
 
         #region BNF-ish Grammar + Visitor
 
         /// <summary>
-        /// Production rules to describe the BNF-ish syntax.
+        /// Production rules to describe the BNFish syntax.
         /// </summary>
+        /// <remarks>
+        /// This list of production rules is used to convert BNFish grammar into a set of production rule objects.
+        /// </remarks>
         private List<ProductionRule> BNFGrammar => new List<ProductionRule>
         {
             // Lexer Rules
@@ -53,7 +72,7 @@ namespace Parser
         };
 
         /// <summary>
-        /// Visitor to process the BNF-ish tree.
+        /// Visitor to process the BNFish tree, converting BNFish into a list of ProductionRule objects.
         /// </summary>
         private Visitor BNFVisitor
         {
@@ -171,6 +190,8 @@ namespace Parser
             {
                 this.IgnoreTokens.Add(token);
             }
+
+            this.productionRules = RemoveDirectLeftRecursion(this.productionRules);
         }
 
         /// <summary>
@@ -181,13 +202,18 @@ namespace Parser
         /// <param name="ignoreTokens">An optional list of token names to exclude from the tokeniser and parser.</param>
         public Parser(string grammar, string rootProductionRule, params string[] ignoreTokens)
         {
-            this.Grammar = grammar;
             this.IgnoreTokens = new List<string>();
             this.RootProductionRule = rootProductionRule;
             foreach (var token in ignoreTokens)
             {
                 this.IgnoreTokens.Add(token);
             }
+
+            Parser parser = new Parser(this.BNFGrammar, "grammar", "COMMENT", "NEWLINE");
+            var tokens = parser.Tokenise(grammar);
+            var ast = parser.Parse(grammar);
+            productionRules = (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d) => d.ProductionRules);
+            productionRules = RemoveDirectLeftRecursion(productionRules);
         }
 
         #endregion
@@ -198,43 +224,6 @@ namespace Parser
         /// WHen set to true, provides additional debugging information.
         /// </summary>
         public bool Debug { get; set; }
-
-        /// <summary>
-        /// Returns the production rules list.
-        /// </summary>
-        public IList<ProductionRule> ProductionRules
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(this.Grammar) && this.productionRules == null)
-                {
-                    throw new Exception("grammar specification is empty.");
-                }
-
-                if (_productionRules != null)
-                    return _productionRules;
-                else if (!string.IsNullOrEmpty(this.Grammar))
-                {
-                    Parser parser = new Parser(this.BNFGrammar, "grammar", "COMMENT", "NEWLINE");
-                    var tokens = parser.Tokenise(this.Grammar);
-                    var ast = parser.Parse(this.Grammar);
-                    _productionRules = (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d)=>d.ProductionRules);
-                    _productionRules = RemoveDirectLeftRecursion(_productionRules);
-                    return _productionRules;
-                }
-                else
-                {
-                    _productionRules = new List<ProductionRule>();
-                    foreach (var pr in this.productionRules)
-                    {
-                        pr.Debug = this.Debug;
-                        _productionRules.Add(pr);
-                    }
-                    _productionRules = RemoveDirectLeftRecursion(_productionRules);
-                    return _productionRules;
-                }
-            }
-        }
 
         /// <summary>
         /// Removes direct left recursion.
@@ -311,7 +300,7 @@ namespace Parser
 
             // Start at the beginning of the string and
             // recursively identify tokens. First token to match wins
-            foreach (var rule in ProductionRules.Where(p => p.RuleType == RuleType.LexerRule))
+            foreach (var rule in productionRules.Where(p => p.RuleType == RuleType.LexerRule))
             {
                 var symbols = rule.Symbols;
                 if (symbols.Count() > 1)
@@ -357,7 +346,7 @@ namespace Parser
                 throw new Exception("input yields no tokens!");
 
             // find any matching production rules.
-            var rules = ProductionRules.Where(p => this.RootProductionRule == null || p.Name.Equals(this.RootProductionRule, StringComparison.OrdinalIgnoreCase));
+            var rules = productionRules.Where(p => this.RootProductionRule == null || p.Name.Equals(this.RootProductionRule, StringComparison.OrdinalIgnoreCase));
             if (!rules.Any())
                 throw new Exception(string.Format("Production rule: {0} not found.", this.RootProductionRule));
 
@@ -365,7 +354,7 @@ namespace Parser
             foreach (var rule in rules)
             {
                 rule.Debug = this.Debug;
-                ParserContext context = new ParserContext(ProductionRules, tokens);
+                ParserContext context = new ParserContext(productionRules, tokens);
                 object obj = null;
                 var ok = rule.Parse(context, out obj);
                 if (ok && context.TokenEOF)
@@ -402,7 +391,7 @@ namespace Parser
 
         public override string ToString()
         {
-            return string.Join(Environment.NewLine, this.ProductionRules);
+            return string.Join(Environment.NewLine, productionRules);
         }
     }
 
