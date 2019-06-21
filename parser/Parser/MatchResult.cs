@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// Result from the Match method. Used to match tokens.

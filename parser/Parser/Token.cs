@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// A terminal token within the input. The lexer converts string input into an array of lexed tokens.

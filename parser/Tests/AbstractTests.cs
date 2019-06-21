@@ -4,13 +4,29 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser.Tests
+namespace Dbarone.Parser
 {
     public abstract class AbstractTests
     {
         public static int TestNumber = 0;
         public static int Passed = 0;
         public static int Failed = 0;
+        public bool debug = false;
+
+        public void ParserLogFunc(object sender, ParserLogArgs args)
+        {
+            if (args.ParserLogType==ParserLogType.BEGIN || args.ParserLogType == ParserLogType.END)
+                Console.ForegroundColor = ConsoleColor.Magenta;
+            else if (args.ParserLogType == ParserLogType.FAILURE)
+                Console.ForegroundColor = ConsoleColor.Red;
+            else if (args.ParserLogType == ParserLogType.INFORMATION)
+                Console.ForegroundColor = ConsoleColor.White;
+            else if (args.ParserLogType == ParserLogType.SUCCESS)
+                Console.ForegroundColor = ConsoleColor.Green;
+
+            Console.WriteLine($"{new String(' ', args.NestingLevel)} {args.ParserLogType.ToString()} {args.Message}");
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
 
         public abstract void DoTests();
 
@@ -46,6 +62,9 @@ namespace Parser.Tests
             try
             {
                 var parser = new Parser(grammar, productionRule);
+                if (debug)
+                    parser.ParserLogFunc = ParserLogFunc;
+
                 var rules = parser.ProductionRules;
 
                 Console.WriteLine($@"Production rules: {rules.Count}

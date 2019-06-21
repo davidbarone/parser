@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// Specifies a single rule in the grammar..
     /// </summary>
-    public class ProductionRule
+    public class ProductionRule : ILoggable
     {
         public ProductionRule(string name, params string[] symbols)
         {
@@ -30,8 +30,6 @@ namespace Parser
                 this.Symbols.Add(symbol);
             }
         }
-
-        public bool Debug { get; set; }
 
         /// <summary>
         /// Name of the rule. Used to name nodes of the abstract syntax tree.
@@ -57,6 +55,8 @@ namespace Parser
         /// The symbols that make up this rule.
         /// </summary>
         public List<Symbol> Symbols { get; set; }
+
+        public Action<object, ParserLogArgs> ParserLogFunc { get; set; }
 
         /// <summary>
         /// Returns true if a symbol exists more than once, or the symbol is of type 'many'.
@@ -99,10 +99,12 @@ namespace Parser
         /// <returns>The return object contains a portion of the tree (object / node) parsed by this production rule alone.</returns>
         public bool Parse(ParserContext context, out object obj)
         {
-            foreach (var symbol in this.Symbols)
-            {
-                symbol.Debug = this.Debug;
-            }
+            ParserLogFunc?.Invoke(this, new ParserLogArgs
+                {
+                    ParserLogType = ParserLogType.BEGIN,
+                    NestingLevel = context.CurrentProductionRule.Count(),
+                    Message = $"{this.Name} - Pushing new result to stack."
+                });
 
             context.CurrentProductionRule.Push(this);
             context.PushResult(GetResultObject());
@@ -110,17 +112,10 @@ namespace Parser
 
             bool success = true;
 
-            if (Debug)
-            {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count()-1)}START [ProductionRule.Parse()] {this.Name} - Pushing new result to stack.");
-                Console.ForegroundColor = ConsoleColor.Gray;
-            }
-
             // Rule is non terminal
             foreach (var symbol in this.Symbols)
             {
-                symbol.Debug = this.Debug;
+                symbol.ParserLogFunc = this.ParserLogFunc;
                 if (symbol.Optional && context.TokenEOF)
                     continue;
 
@@ -140,22 +135,22 @@ namespace Parser
 
             if (success)
             {
-                if (Debug)
+                ParserLogFunc?.Invoke(this, new ParserLogArgs
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [ProductionRule.Parse()] {this.Name} Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
+                    ParserLogType = ParserLogType.SUCCESS,
+                    NestingLevel = context.CurrentProductionRule.Count()
+                });
+
                 return true;
             }
             else
             {
-                if (Debug)
+                ParserLogFunc?.Invoke(this, new ParserLogArgs
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [ProductionRule.Parse()] {this.Name} Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
+                    ParserLogType = ParserLogType.FAILURE,
+                    NestingLevel = context.CurrentProductionRule.Count()
+                });
+
                 context.CurrentTokenIndex = temp;
                 obj = null;
                 return false;
@@ -186,12 +181,6 @@ namespace Parser
 
                     if (ret == null)
                         ret = new Node(this.Name);
-
-                    if (IsEnumeratedSymbol(alias))
-                    {
-                        Node retAsNode = ret as Node;
-                        retAsNode.Properties[alias] = new List<object>();
-                    }
                 }
                 else
                 {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// Provides context during the parsing process.
@@ -107,6 +107,9 @@ namespace Parser
                 {
                     if (isEnumerated)
                     {
+                        if (!resultAsNode.Properties.ContainsKey(name))
+                            resultAsNode.Properties[name] = new List<object>();
+
                         resultAsNode.Properties[name] = resultAsNode.Properties[name].Union(value);
                     }
                     else

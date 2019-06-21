@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser.Tests
+namespace Dbarone.Parser
 {
     public class LeftRecursionTests : AbstractTests
     {
@@ -37,6 +37,20 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                 state.Stack = new Stack<int>();
 
                 var visitor = new Visitor(state);
+
+                visitor.AddVisitor(
+                    "term",
+                    (v, n) =>
+                    {
+                        var node = (Node)n.Properties["primary"];
+                        node.Accept(v);
+                        var hasMinus = n.Properties.ContainsKey("MINUS_OP");
+                        int number = v.State.Stack.Pop();
+                        if (hasMinus)
+                            number = number * -1;
+                        v.State.Stack.Push(number);
+                    }
+                );
 
                 visitor.AddVisitor(
                     "factor",

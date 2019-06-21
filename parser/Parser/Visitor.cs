@@ -5,10 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
-    /// Object that can traverse an abstract syntax tree, using a visitor pattern.
+    /// Visitor class that can be accepted by a node. Enables traversal and processing of an abstract syntax tree using the visitor pattern.
     /// </summary>
     public class Visitor
     {
@@ -81,7 +81,6 @@ namespace Parser
             var name = node.Name;
             var visitor = this.Visitors.Keys.FirstOrDefault(k => k.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (visitor == null) {
-                //throw new Exception(string.Format("Visitor not found for '{0}'!", name));
                 DefaultVisitor(this, node);
             }
             else

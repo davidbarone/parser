@@ -1,5 +1,4 @@
-﻿using Parser.Tests;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Dynamic;
@@ -8,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     class Program
     {

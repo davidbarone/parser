@@ -6,12 +6,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// Parser class which encapsulates a number of parsing functions to parse context-free grammars.
     /// </summary>
-    public class Parser
+    public class Parser : ILoggable
     {
         /// <summary>
         /// External specification of the grammar.
@@ -221,9 +221,9 @@ namespace Parser
         #region Public Properties / Methods
 
         /// <summary>
-        /// WHen set to true, provides additional debugging information.
+        /// Optional logger to get Parser information.
         /// </summary>
-        public bool Debug { get; set; }
+        public Action<object, ParserLogArgs> ParserLogFunc { get; set; }
 
         /// <summary>
         /// Removes direct left recursion.
@@ -353,7 +353,7 @@ namespace Parser
             // try each rule. Use the first rule which succeeds.
             foreach (var rule in rules)
             {
-                rule.Debug = this.Debug;
+                rule.ParserLogFunc = this.ParserLogFunc;
                 ParserContext context = new ParserContext(productionRules, tokens);
                 object obj = null;
                 var ok = rule.Parse(context, out obj);
@@ -363,6 +363,7 @@ namespace Parser
                 }
             }
 
+            // should not get here...
             if (throwOnFailure)
                 throw new Exception("Input cannot be parsed.");
             else

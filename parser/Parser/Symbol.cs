@@ -5,13 +5,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Parser
+namespace Dbarone.Parser
 {
     /// <summary>
     /// Defines a symbol in a production rule. A symbol can be a terminal (lexer / terminal symbol)
     /// or another production rule (non terminal).
     /// </summary>
-    public class Symbol
+    public class Symbol : ILoggable
     {
         public Symbol(string value, RuleType ruleType)
         {
@@ -54,11 +54,6 @@ namespace Parser
         public string Alias { get; set; }
 
         /// <summary>
-        /// Set to true to provide additional debug information.
-        /// </summary>
-        public bool Debug { get; set; }
-
-        /// <summary>
         /// Name of the symbol.
         /// </summary>
         public string Name { get; set; }
@@ -77,6 +72,8 @@ namespace Parser
         /// Set to true if symbol to be ignored in the abstract syntax tree.
         /// </summary>
         public bool Ignore { get; set; }
+
+        public Action<object, ParserLogArgs> ParserLogFunc { get; set; }
 
         /// <summary>
         /// Matches symbol to input.
@@ -116,12 +113,12 @@ namespace Parser
         /// <returns>True if successful. The abstract syntax tree is constructed using the context.Results object.</returns>
         public bool Parse(ParserContext context)
         {
-            if (Debug)
+            ParserLogFunc?.Invoke(this, new ParserLogArgs
             {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}START [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]");
-                Console.ForegroundColor = ConsoleColor.Gray;
-            }
+                ParserLogType = ParserLogType.BEGIN,
+                NestingLevel = context.CurrentProductionRule.Count(),
+                Message = $"Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]"
+            });
 
             // save token position
             int temp = context.CurrentTokenIndex;
@@ -170,7 +167,7 @@ namespace Parser
 
                         foreach (var rule in rules)
                         {
-                            rule.Debug = this.Debug;
+                            rule.ParserLogFunc = this.ParserLogFunc;
                             object obj = null;
                             ok = rule.Parse(context, out obj);
                             if (ok)
@@ -183,7 +180,6 @@ namespace Parser
                     }
 
                     // wind back the token index if the symbol did not match tokens.
-                    //Console.WriteLine(string.Format("OK = {0}", ok));
                     if (ok)
                     {
                         once = true;
@@ -201,24 +197,13 @@ namespace Parser
 
             // return true if match (at least once).
             var success = ok || once || Optional;
-            if (Debug)
+
+            ParserLogFunc?.Invoke(this, new ParserLogArgs
             {
-                if (success)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    if (once)
-                        Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success (once)");
-                    else
-                        Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: success");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"{new String(' ', context.CurrentProductionRule.Count())}END [Symbol.Parse()] Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}: failure");
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
-            }
+                ParserLogType = success ? ParserLogType.SUCCESS : ParserLogType.FAILURE,
+                NestingLevel = context.CurrentProductionRule.Count(),
+                Message = $"Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]"
+            });
 
             return success;
         }

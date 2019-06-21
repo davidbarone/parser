@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parser.Tests
+namespace Dbarone.Parser
 {
     public class FooBarBazTests : AbstractTests
     {
