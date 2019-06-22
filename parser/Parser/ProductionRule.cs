@@ -117,11 +117,8 @@ namespace Dbarone.Parser
                 Message = $"{this.Name} - Pushing new result to stack."
             });
 
-            if (!this.IsGenerated)
-            {
-                context.CurrentProductionRule.Push(this);
-                context.PushResult(GetResultObject());
-            }
+            context.CurrentProductionRule.Push(this);
+            context.PushResult(GetResultObject());
 
             var temp = context.CurrentTokenIndex;
             bool success = true;
@@ -144,14 +141,8 @@ namespace Dbarone.Parser
                 }
             }
 
-            if (!this.IsGenerated)
-            {
-                obj = context.PopResult();
-                context.CurrentProductionRule.Pop();
-            } else
-            {
-                obj = context.PeekResult();
-            }
+            obj = context.PopResult();
+            context.CurrentProductionRule.Pop();
 
             if (success)
             {

@@ -28,6 +28,9 @@ namespace Dbarone.Parser
             var tests5 = new LeftRecursionTests();
             tests5.DoTests();
 
+            var tests6 = new SubRuleTests();
+            tests6.DoTests();
+
             Console.WriteLine();
             Console.WriteLine("Summary:");
             Console.WriteLine("--------");

@@ -6,61 +6,10 @@ This is a top-down brute-force parser with backtracking which will parse context
 - Parse the tokens into an abstract syntax tree (parsing), or
 - Navigation through the abstract syntax tree, using a visitor class.
 
-The parser requires a grammar to be specified. This grammar can be specified using a 'BNF-ish' syntax, or through a special `ProductionRule` class. A `Visitor` class is provided to allow developers to implement logic to navigate or 'walk' the abstract syntax trees.
+The parser requires a grammar to be specified. This grammar can be specified using a 'BNF-ish' syntax. A `Visitor` class is provided to allow developers to implement logic to navigate or 'walk' the abstract syntax trees.
 
 ## Grammar
-A grammar is used to define the language for the parser. This grammar can be created in 2 ways:
-- Creating an enumeration of `ProductionRule` objects
-- Creating a grammar using 'BNF-ish' syntax
-
-### Using Production Rules for Grammar
-A grammar looks something like this:
-```
-var grammar = new List<ProductionRule>
-{
-    // Lexer Rules
-    new ProductionRule("COMMENT", @"\(\*.*\*\)"),                   // (*...*)
-    new ProductionRule("EQ", "="),                                  // definition
-    new ProductionRule("COMMA", "[,]"),                             // concatenation
-    new ProductionRule("COLON", "[:]"),                             // rewrite / aliasing
-    new ProductionRule("SEMICOLON", ";"),                           // termination
-    new ProductionRule("MODIFIER", "[?!+*]"),                       // modifies the symbol
-    new ProductionRule("OR", @"[|]"),                               // alternation
-    new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),   // quoted literal
-    new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_]+"),      // rule names
-    new ProductionRule("NEWLINE", "\n"),
-
-    // Parser Rules
-    new ProductionRule("alias", ":IDENTIFIER?", ":COLON"),
-    new ProductionRule("symbol", "ALIAS:alias?", "IDENTIFIER:IDENTIFIER", "MODIFIER:MODIFIER?"),
-    new ProductionRule("parserSymbolTerm", ":symbol"),
-    new ProductionRule("parserSymbolFactor", "COMMA!", ":symbol"),
-    new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
-    new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
-    new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
-    new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:QUOTEDLITERAL", "SEMICOLON!"),      // Lexer rule
-    new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:parserSymbolsExpr", "SEMICOLON!"),  // Parser rule
-    new ProductionRule("grammar", "RULES:rule+")
-}
-```
-(The above is actually the grammar for specifying the 'BNF-ish' grammar used by this tool)
-
-Each line specifies an 'expansion' rule. Rules can be either:
-- Lexer rules
-- Production rules
-
-Rules are named using alpha-numeric characters, or the underscore character. Rule names must start with an alpha character. Lexer rules are defined as requiring an uppercase first character, and parser rules must start with a lower case character.
-
-Lexer rules define terminal symbols in the grammar. Every possible terminal symbol must be defined explicitly as a lexer rule (Parser rules cannot use literal symbols). Each lexer rule maps to a single literal expansion only. The expansion is written using a regex.
-
-Parser rules define non-terminal symbols. Parser rules general map to a set of lexer rules or other parser rules. The general format of a parser symbol is:
-
-`(alias(:))symbol(modifier)`
-
-The alias and modifier parts are options. In a simple case, the symbol is the name of another rule (either lexer or parser rule). symbols in a parser rule can be other parser rules which in turn expand into other parser rules, and hence in this fashion a complex grammar can be specified.
-
-### Specifying a grammar using BNF-ish syntax
-A grammar can also be specified in a format similar to BNF/EBNF for example:
+A grammar is used to define the language for the parser. This grammar is created using 'BNF-ish' (BNF/EBNF) syntax, for example:
 ```
 (* Lexer Rules *)
 
@@ -113,10 +62,98 @@ The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' exp
 |,         |Sequence / contanenation                 |
 |;         |Termination of rule                      |
 |(\*...\*) |Comment                                  |
+|(...)     |Subrule                                  |
 |?         |Symbol modifier - 0 or 1 times (optional)|
 |+         |Symbol modifier - 1 or more times        |
 |*         |Symbol modifier - 0 or more times        |
 |!         |Symbol modifier - ignore result from ast |
+
+## Internal Representation of Production Rules
+The BNF-ish grammar is converted internally to a collection of production rules each represented by the `ProductionRule` class. An example of how the production rules are generated internally is shown below:
+```
+private List<ProductionRule> BNFGrammar => new List<ProductionRule>
+{
+      // Lexer Rules
+      new ProductionRule("COMMENT", @"\(\*.*\*\)"), // (*...*)
+      new ProductionRule("EQ", "="),                  // definition
+      new ProductionRule("COMMA", "[,]"),               // concatenation
+      new ProductionRule("COLON", "[:]"),               // rewrite / aliasing
+      new ProductionRule("SEMICOLON", ";"),           // termination
+      new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
+      new ProductionRule("OR", @"[|]"),                 // alternation
+      new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
+      new ProductionRule("IDENTIFIER", "([a-zA-Z][a-zA-Z0-9_']+|ε)"),
+      new ProductionRule("NEWLINE", "\n"),
+      new ProductionRule("LPAREN", @"\("),
+      new ProductionRule("RPAREN", @"\)"),
+
+      // Parser Rules
+      new ProductionRule("alias", ":IDENTIFIER?", ":COLON"),
+      new ProductionRule("subrule", "LPAREN!", ":parserSymbolsExpr", "RPAREN!"),
+      new ProductionRule("symbol", "ALIAS:alias?", "SUBRULE:subrule", "MODIFIER:MODIFIER?"),
+      new ProductionRule("symbol", "ALIAS:alias?", "IDENTIFIER:IDENTIFIER", "MODIFIER:MODIFIER?"),
+      new ProductionRule("parserSymbolTerm", ":symbol"),
+      new ProductionRule("parserSymbolFactor", "COMMA!", ":symbol"),
+      new ProductionRule("parserSymbolExpr", "SYMBOL:parserSymbolTerm", "SYMBOL:parserSymbolFactor*"),
+      new ProductionRule("parserSymbolsFactor", "OR!", ":parserSymbolExpr"),
+      new ProductionRule("parserSymbolsExpr", "ALTERNATE:parserSymbolExpr", "ALTERNATE:parserSymbolsFactor*"),
+
+      new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:QUOTEDLITERAL", "SEMICOLON!"),      // Lexer rule
+      new ProductionRule("rule", "RULE:IDENTIFIER", "EQ!", "EXPANSION:parserSymbolsExpr", "SEMICOLON!"),  // Parser rule
+      new ProductionRule("grammar", "RULES:rule+")
+};
+```
+(The above is actually the grammar for specifying the 'BNF-ish' grammar used by this tool)
+
+Each line specifies an 'expansion' rule. Rules can be either:
+- Lexer rules
+- Production rules
+
+Rules are named using alpha-numeric characters, or the underscore character. Rule names must start with an alpha character. Lexer rules are defined as requiring an uppercase first character, and parser rules must start with a lower case character.
+
+Lexer rules define terminal symbols in the grammar. Every possible terminal symbol must be defined explicitly as a lexer rule (Parser rules cannot use literal symbols). Each lexer rule maps to a single literal expansion only. The expansion is written using a regex.
+
+Parser rules define non-terminal symbols. Parser rules define expansions to a set of lexer rules or other parser rules. The general format of a parser symbol is:
+
+`(alias(:))symbol(modifier)`
+
+The alias and modifier parts are options. In a simple case, the symbol is the name of another rule (either lexer or parser rule). symbols in a parser rule can be other parser rules which in turn expand into other parser rules, and hence in this fashion a complex grammar can be specified.
+
+## Subrules
+In general, a parser rule specifies a set of expansion symbols. Each of these must be another production rule (either lexer rule or parser rule). Alternatively, rules can be 'inlined' within a production rule using the parentheses `(...)`. These have the effect of creating an anonymous parser rule. Subrules can be used in place of explicit rules to make the grammar more consise. For example, a simple grammar to define a numeric expression without left recursion could be written as:
+```
+NUMBER_LITERAL  = ""\d+"";
+PLUS_OP         = ""\+"";
+MINUS_OP        = ""\-"";
+MUL_OP          = ""\*"";
+DIV_OP          = ""\/"";
+LPAREN         = ""\("";
+RPAREN         = ""\)"";
+expression      = minus_plus_expr | term;
+minus_plus_expr = TERMS:term, TERMS:minus_plus_expr_*;
+minus_plus_expr_
+                = OP:MINUS_OP, term | OP:PLUS_OP, term;
+term            = mul_div_term | factor;
+mul_div_term    = FACTORS:factor, FACTORS:mul_div_term_*;
+mul_div_term_   = OP:DIV_OP, factor | OP:MUL_OP, factor;
+factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
+primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
+```
+Using subrules, this can be rewritten as:
+```
+NUMBER_LITERAL  = ""\d+"";
+PLUS_OP         = ""\+"";
+MINUS_OP        = ""\-"";
+MUL_OP          = ""\*"";
+DIV_OP          = ""\/"";
+LPAREN         = ""\("";
+RPAREN         = ""\)"";
+expression      = TERMS:(:term, :(OP:MINUS_OP, term | OP:PLUS_OP, term)*);
+term            = FACTORS:(:factor, :(OP:DIV_OP, factor | OP:MUL_OP, factor)*);
+factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
+primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
+```
+On the downside, subrules get automatically generated in the grammar, and cannot be easily referenced in the abstract syntax tree. The visitor class visits known rules, so cannot easily traverse subrules. In general it is not recommended to make deeply nested subrules. Subrules should be used only for simple inline expansions.
 
 ## Tokeniser
 The tokeniser uses regex expressions as rules. Any valid C# regex can be used. Note that every string token in your input must be defined as a lexer rule. There is no support for literal tokens defined in parser rules. All parser rules must reference either other parser rules, or lexer rules.
@@ -299,15 +336,25 @@ When a symbol is modified with the 'many' modifiers, they still occupy a single 
 the order of rules is important. As the parser adopts a brute force approach, it will continue looking for matching rules until the first match. Subsequent rules will be ignored. If a failure occurs at a nested position, the parser will backtrack from the point of failure, and continue looking for matching rules. If all paths are attempted without a match, parsing of the input fails.
 
 ## Left Recursion
-This parser does not support left recursion automatically. However, it does support repeated rules.
-Therefore a left-recursive rule can easily be written:
-
+The parser currently has an 'experimental' feature for removing direct left recursion. A rule is directly left recursive if it has a form where the left most symbol is itself, for example:
+`a = ab | C;`
+The parser attempts to remove left recursion by first replacing the above rule with a new set of rules:
+`
+a = Ca';
+a'= ba' | ε;
+`
+A second round of substitions then attempts to remove the empty rule (essentially a' is optional):
+`
+a = Ca';
+a'= ba';
+a = C;
+a' = b;
+`
+As mentioned above, this functionality is experimental, and not yet tested. It is recommended to remove any left recursion from the grammar up-front.
+The parser supports repeated rules, and a left-recursive grammar can be easily rewritten thus:
 `a : a B | C`
-
 Can be rewritten as:
-
 `a : C B*`
-
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
 ## Processing a Tree Using the Visitor Class
@@ -326,4 +373,13 @@ The body of this function is then free to process the node in any way.
 
 State can be persisted across handlers by using the `Visitor.State` property.
 
+Visitors do not need to be written for every rule / node type. By default if no visitor is found for a node, the default behaviour is for the engine to recursively visit every node property within the parent node. 
+
+## Unit Tests
+A set of unit tests is included in the project. As well as testing the accuracy of the system, these tests show how the parser is used. Test examples include:
+- FooBarBazTests: A very simple grammar.
+- ExpressionTests: A simple numeric expression parser for +,-,*,/ operators as well as parentheses.
+- SubRuleTests: A version of the ExpressionTests grammar using subrules
+- LeftRecursionTests: A version of the ExpressionTests grammar using left recursion (experimental).
+- SqlishTests: A simple SQL-like grammar.
 --- end ---
