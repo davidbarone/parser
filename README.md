@@ -386,10 +386,10 @@ Visitors do not need to be written for every rule / node type. By default if no 
 
 ## Unit Tests
 A set of unit tests is included in the project. As well as testing the accuracy of the system, these tests show how the parser is used. Test examples include:
-- #FooBarBazTests#: A very simple grammar.
-- #ExpressionTests#: A simple numeric expression parser for +,-,*,/ operators as well as parentheses.
-- #SubRuleTests#: A version of the ExpressionTests grammar using subrules
-- #LeftRecursionTests#: A version of the ExpressionTests grammar using left recursion (experimental).
-- #SqlishTests#: A simple SQL-like grammar.
+- **FooBarBazTests**: A very simple grammar.
+- **ExpressionTests**: A simple numeric expression parser for +,-,*,/ operators as well as parentheses.
+- **SubRuleTests**: A version of the ExpressionTests grammar using subrules
+- **LeftRecursionTests**: A version of the ExpressionTests grammar using left recursion (experimental).
+- **SqlishTests**: A simple SQL-like grammar.
 
 --- end ---
