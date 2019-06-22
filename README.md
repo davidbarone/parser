@@ -1,12 +1,18 @@
 # parser
 A simple C# lexer and parser
 
-This is a top-down brute-force parser with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple DSLs. The parser takes an input and can provide the following services:
+This is a top-down brute-force parser with backtracking which will parse context free grammars. It is a very simplistic parser and intended for simple grammars or DSLs. The parser takes an input and can provide the following services:
 - Lexically analyse the input into a series of tokens (tokenising)
 - Parse the tokens into an abstract syntax tree (parsing), or
 - Navigation through the abstract syntax tree, using a visitor class.
 
-The parser requires a grammar to be specified. This grammar can be specified using a 'BNF-ish' syntax. A `Visitor` class is provided to allow developers to implement logic to navigate or 'walk' the abstract syntax trees.
+The target use case for this parser is for processing inputs that are slightly too complex for regular expressions alone, and where the user does not want the overhead of an industrial strength or commercial parser toolkit. The benefits of this parser are:
+- Extremely small / simple to understand
+- Does not require any build-time code generation tasks.
+
+The parser assembly can be included in your project, or you can even copy the source files (there's less than a dozen source files required). The language grammar is specified using a very friendly BNF-ish syntax which will be familiar to users of other parser toolkits. The `Parser` class provides the main functionality, and includes `Tokenise()` and `Parse()` methods.
+
+For processing the input (through an abstract syntax tree), a special `Visitor` class is provided. Hooks into different parts of the tree can be easily coded by creating visitor handlers (again, all this can be done directly from your code without any pre-processing code generation steps).
 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar is created using 'BNF-ish' (BNF/EBNF) syntax, for example:
