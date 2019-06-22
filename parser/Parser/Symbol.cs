@@ -125,13 +125,7 @@ namespace Dbarone.Parser
             bool ok = false;
             var once = false;
 
-            // Special epsilon token matches no string, so just return success
-            // immediately, without even trying the next token.
-            if (this.Name == "ε")
-            {
-                return true;
-            }
-            else if (this.Optional && context.TokenEOF)
+            if (this.Optional && context.TokenEOF)
             {
                 return true;
             }

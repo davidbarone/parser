@@ -54,7 +54,7 @@ namespace Dbarone.Parser
             new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
             new ProductionRule("OR", @"[|]"),                 // alternation
             new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
-            new ProductionRule("IDENTIFIER", "([a-zA-Z][a-zA-Z0-9_']+|ε)"),
+            new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_']+"),
             new ProductionRule("NEWLINE", "\n"),
             new ProductionRule("LPAREN", @"\("),
             new ProductionRule("RPAREN", @"\)"),

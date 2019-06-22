@@ -52,7 +52,7 @@ boolean_term        =   AND:boolean_primary, AND:boolean_factor*;
 search_factor       =   OR!, :boolean_term;
 search_condition    =   OR:boolean_term, OR:search_factor*;";
 ```
-The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' expression. Again, the same rules apply for lexer rules and parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols allows in the grammar is shown below:
+The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' expression. The grammar includes terminal and non terminal rules. Within the parser, terminal rules are called lexer rules, and non-terminal rules are called parser rules. Multiple alternate expansions of a rule can be separated by '|', and a series of symbols are separated by a comma. The full set of symbols allows in the grammar is shown below:
 
 |Symbol    |Description                              |
 |:--------:|:----------------------------------------|
@@ -69,7 +69,7 @@ The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' exp
 |!         |Symbol modifier - ignore result from ast |
 
 ## Internal Representation of Production Rules
-The BNF-ish grammar is converted internally to a collection of production rules each represented by the `ProductionRule` class. An example of how the production rules are generated internally is shown below:
+The BNF-ish grammar is converted internally to a collection of production rule objects each represented by the `ProductionRule` class. An example of how the production rules are generated internally is shown below:
 ```
 private List<ProductionRule> BNFGrammar => new List<ProductionRule>
 {
@@ -82,7 +82,7 @@ private List<ProductionRule> BNFGrammar => new List<ProductionRule>
       new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
       new ProductionRule("OR", @"[|]"),                 // alternation
       new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
-      new ProductionRule("IDENTIFIER", "([a-zA-Z][a-zA-Z0-9_']+|ε)"),
+      new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_']+"),
       new ProductionRule("NEWLINE", "\n"),
       new ProductionRule("LPAREN", @"\("),
       new ProductionRule("RPAREN", @"\)"),
@@ -153,7 +153,7 @@ term            = FACTORS:(:factor, :(OP:DIV_OP, factor | OP:MUL_OP, factor)*);
 factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
 primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
 ```
-On the downside, subrules get automatically generated in the grammar, and cannot be easily referenced in the abstract syntax tree. The visitor class visits known rules, so cannot easily traverse subrules. In general it is not recommended to make deeply nested subrules. Subrules should be used only for simple inline expansions.
+On the downside, subrules get automatically generated in the grammar, and cannot be easily referenced in the abstract syntax tree. When rules are explicitly defined in the grammar, the rule names become the names of the nodes in the abstract syntax tree, and these same names are used by the visitor to match appropriate nodes. Subrules cannot be easily matched by the visitor. In general it is not recommended to make deeply nested subrules. Subrules should be used only for simple inline expansions.
 
 ## Tokeniser
 The tokeniser uses regex expressions as rules. Any valid C# regex can be used. Note that every string token in your input must be defined as a lexer rule. There is no support for literal tokens defined in parser rules. All parser rules must reference either other parser rules, or lexer rules.
@@ -337,25 +337,34 @@ the order of rules is important. As the parser adopts a brute force approach, it
 
 ## Left Recursion
 The parser currently has an 'experimental' feature for removing direct left recursion. A rule is directly left recursive if it has a form where the left most symbol is itself, for example:
+
 `a = ab | C;`
+
 The parser attempts to remove left recursion by first replacing the above rule with a new set of rules:
-`
+```
 a = Ca';
 a'= ba' | ε;
-`
+```
 A second round of substitions then attempts to remove the empty rule (essentially a' is optional):
-`
+```
 a = Ca';
 a'= ba';
 a = C;
 a' = b;
-`
+```
 As mentioned above, this functionality is experimental, and not yet tested. It is recommended to remove any left recursion from the grammar up-front.
 The parser supports repeated rules, and a left-recursive grammar can be easily rewritten thus:
+
 `a : a B | C`
+
 Can be rewritten as:
+
 `a : C B*`
+
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
+
+## Abstract syntax tree structure
+The abstract syntax tree structure uses `Node` objects to represent non-terminal nodes, and `Token` objects to represent terminal nodes. The `Node` object has a properties collection. This properties collection contains all the symbols gathered during parsing. The property names are the node names, or the aliases (if specified). The properties collection can contain `Node` objects, `Token` objects, or lists of them.
 
 ## Processing a Tree Using the Visitor Class
 A `Visitor` class is included which allows for an abstract syntax tree to be processed. A new visitor is created using:
