@@ -11,7 +11,7 @@ namespace Dbarone.Parser
     {
         public override void DoTests()
         {
-            DoTest("LR1", LeftRecursionGrammar, "1+2+3+4", "expression", null, null, null, false);
+            DoTest("LR1", LeftRecursionGrammar, "1+2*3", "expression", LeftRecursionVisitor, (d)=> (int)d.Stack.Pop(), 7, false);
         }
 
         public string LeftRecursionGrammar => @"
@@ -23,9 +23,9 @@ DIV_OP          = ""\/"";
 LPAREN         = ""\("";
 RPAREN         = ""\)"";
 
-expression      = expression, PLUS_OP, term | expression, MINUS_OP, term | term;
-term            = factor | term, MUL_OP, factor | term, DIV_OP, factor;
-factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
+expression      = expression, OP:PLUS_OP, term | expression, OP:MINUS_OP, term | term;
+term            = factor | term, OP:MUL_OP, factor | term, OP:DIV_OP, factor;
+factor          = primary | OP:PLUS_OP, primary | OP:MINUS_OP, primary;
 primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
 
         public Visitor LeftRecursionVisitor
@@ -39,16 +39,65 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                 var visitor = new Visitor(state);
 
                 visitor.AddVisitor(
+                    "expression",
+                    (v, n) =>
+                    {
+                        int? expression = null;
+                        Token op = null;
+
+                        var node = (Node)n.Properties["term"];
+                        node.Accept(v);
+                        var term = v.State.Stack.Pop();
+
+                        if (n.Properties.ContainsKey("expression"))
+                        {
+                            var t = (Node)n.Properties["expression"];
+                            t.Accept(v);
+                            expression = v.State.Stack.Pop();
+                            op = (Token)n.Properties["OP"];
+                        }
+
+                        if (!expression.HasValue)
+                            v.State.Stack.Push(term);
+                        else
+                        {
+                            if (op!=null && op.TokenName == "PLUS_OP")
+                                v.State.Stack.Push(expression + term);
+                            else
+                                v.State.Stack.Push(expression - term);
+                        }
+                    }
+                );
+
+                visitor.AddVisitor(
                     "term",
                     (v, n) =>
                     {
-                        var node = (Node)n.Properties["primary"];
+                        Token op = null;
+                        var node = (Node)n.Properties["factor"];
                         node.Accept(v);
-                        var hasMinus = n.Properties.ContainsKey("MINUS_OP");
-                        int number = v.State.Stack.Pop();
-                        if (hasMinus)
-                            number = number * -1;
-                        v.State.Stack.Push(number);
+                        var factor = v.State.Stack.Pop();
+                        int? term = null;
+
+                        if (n.Properties.ContainsKey("term"))
+                        {
+                            var t = (Node)n.Properties["term"];
+                            t.Accept(v);
+                            term = v.State.Stack.Pop();
+
+                            op = (Token)n.Properties["OP"];
+                        }
+
+
+                        if (!term.HasValue)
+                            v.State.Stack.Push(factor);
+                        else
+                        {
+                            if (op.TokenName=="MUL_OP")
+                                v.State.Stack.Push(term * factor);
+                            else
+                                v.State.Stack.Push(term / factor);
+                        }
                     }
                 );
 
@@ -58,10 +107,15 @@ primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
                     {
                         var node = (Node)n.Properties["primary"];
                         node.Accept(v);
-                        var hasMinus = n.Properties.ContainsKey("MINUS_OP");
-                        int number = v.State.Stack.Pop();
-                        if (hasMinus)
-                            number = number * -1;
+                        var primary = v.State.Stack.Pop();
+
+                        var factor = 1;
+                        if (n.Properties.ContainsKey("OP"))
+                        {
+                            var token = (Token)n.Properties["OP"];
+                            factor = token.TokenName == "PLUS_OP" ? 1 : -1;
+                        }
+                        int number = primary * factor;
                         v.State.Stack.Push(number);
                     }
                 );

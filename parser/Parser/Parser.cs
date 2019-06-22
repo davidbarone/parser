@@ -192,6 +192,7 @@ namespace Dbarone.Parser
             }
 
             this.productionRules = RemoveDirectLeftRecursion(this.productionRules);
+            this.productionRules = EliminateEmptyProduction(this.ProductionRules);
         }
 
         /// <summary>
@@ -214,6 +215,7 @@ namespace Dbarone.Parser
             var ast = parser.Parse(grammar);
             productionRules = (IList<ProductionRule>)parser.Execute(ast, BNFVisitor, (d) => d.ProductionRules);
             productionRules = RemoveDirectLeftRecursion(productionRules);
+            this.productionRules = EliminateEmptyProduction(this.ProductionRules);
         }
 
         #endregion
@@ -223,7 +225,7 @@ namespace Dbarone.Parser
         /// <summary>
         /// Optional logger to get Parser information.
         /// </summary>
-        public Action<object, ParserLogArgs> ParserLogFunc { get; set; }
+        public Action<object, LogArgs> LogHandler { get; set; }
 
         /// <summary>
         /// Removes direct left recursion.
@@ -232,60 +234,75 @@ namespace Dbarone.Parser
         /// <returns></returns>
         private IList<ProductionRule> RemoveDirectLeftRecursion(IList<ProductionRule> rules)
         {
-            IList<ProductionRule> addedRules = new List<ProductionRule>();
-            IList<ProductionRule> temp = new List<ProductionRule>();
-            foreach (var item in rules)
+            List<ProductionRule> output = new List<ProductionRule>();
+            var ruleGroups = rules.GroupBy(r => r.Name);
+            
+            foreach (var ruleGroup in ruleGroups)
             {
-                temp.Add(item);
-            }
-
-            while (true)
-            {
-                bool again = false;
-
-                foreach (var rule in temp.Where(r=>r.RuleType==RuleType.ParserRule))
+                if (ruleGroup.Count()==1 && ruleGroup.First().RuleType == RuleType.LexerRule)
+                    output.Add(ruleGroup.First());
+                else if (!ruleGroup.Any(r=>r.Symbols[0].Name == r.Name))
                 {
-                    if (rule.Symbols[0].Name == rule.Name)
+                    foreach (var rule in ruleGroup)
+                        output.Add(rule);
+                } else
+                {
+                    // left recursive
+                    var tailNonTerminal = $"{ruleGroup.Key}'";
+
+                    // Get all the rules for the non-terminal
+                    // and create 2 sets of new productions to
+                    // eliminate left recursion.
+                    foreach (var rule in ruleGroup)
                     {
-                        again = true;
-
-                        var tailNonTerminal = $"{rule.Name}'";
-
-                        // left recursive
-                        // a) Get all the rules for the non-terminal
-                        foreach (var item in rules.Where(r => r.Name == rule.Name))
+                        if (rule.Symbols[0].Name != rule.Name)
                         {
-                            // We need to create 2 sets of productions
-                            if (item.Symbols[0].Name != item.Name)
-                            {
-                                // one for the rule
-                                var s = item.Symbols.ToList();
-                                s.Add(new Symbol(tailNonTerminal, RuleType.ParserRule));
-                                addedRules.Add(new ProductionRule(rule.Name, s.ToArray()));
-                            }
-                            else
-                            {
-                                // and one for A' (tail)
-                                var s = item.Symbols.Where(i => item.Symbols.IndexOf(i) != 0).ToList();
-                                s.Add(new Symbol(tailNonTerminal, RuleType.ParserRule));
-                                addedRules.Add(new ProductionRule(tailNonTerminal, s.ToArray()));
-                            }
+                            var s = rule.Symbols.ToList();
+                            s.Add(new Symbol(tailNonTerminal, RuleType.ParserRule));
+                            output.Add(new ProductionRule(rule.Name, s.ToArray()));
                         }
-
-                        addedRules.Add(new ProductionRule(tailNonTerminal, "ε"));
-                        temp = temp.Where(r => r.Name != rule.Name).ToList();
-                        break;
+                        else
+                        {
+                            var s = rule.Symbols.Where(i => rule.Symbols.IndexOf(i) > 0).ToList();
+                            s.Add(new Symbol(tailNonTerminal, RuleType.ParserRule));
+                            output.Add(new ProductionRule(tailNonTerminal, s.ToArray()));
+                            output.Add(new ProductionRule(tailNonTerminal, "ε"));
+                        }
                     }
                 }
-                if (!again)
-                    break;
+            }
+            return output;
+        }
+
+        private List<ProductionRule> EliminateEmptyProduction(IList<ProductionRule> rules)
+        {
+            List<ProductionRule> additionalRules = new List<ProductionRule>();
+            List<ProductionRule> output = new List<ProductionRule>();
+
+            var rulesWithEmpty = rules
+                .GroupBy(r => r.Name)
+                .Where(rg => rg.Any(pr => pr.Symbols.Count() == 1 && pr.Symbols.First().Name == "ε"))
+                .Select(rg => rg.Key);
+
+            // for each production rule that has empty / nullable option,
+            // search through all production rules and where you find
+            // that production rule as a symbol in another rule, create
+            // a copy of that production rule without the symbol
+
+            foreach (var rule in rules)
+            {
+                if (rule.Symbols.Any(s=> rulesWithEmpty.Contains(s.Name)))
+                {
+                    var nonNullableSymbols = rule.Symbols.Where(s => !rulesWithEmpty.Contains(s.Name));
+                    additionalRules.Add(new ProductionRule(rule.Name, nonNullableSymbols.ToArray()));
+                }
             }
 
-            foreach (var item in addedRules)
-            {
-                temp.Add(item);
-            }
-            return temp;
+            foreach (var rule in rules.Where(r=>!(r.Symbols.Count()==1 && r.Symbols[0].Name== "ε")))
+                output.Add(rule);
+            foreach (var rule in additionalRules)
+                output.Add(rule);
+            return output;
         }
 
         /// <summary>
@@ -353,7 +370,7 @@ namespace Dbarone.Parser
             // try each rule. Use the first rule which succeeds.
             foreach (var rule in rules)
             {
-                rule.ParserLogFunc = this.ParserLogFunc;
+                rule.LogHandler = this.LogHandler;
                 ParserContext context = new ParserContext(productionRules, tokens);
                 object obj = null;
                 var ok = rule.Parse(context, out obj);

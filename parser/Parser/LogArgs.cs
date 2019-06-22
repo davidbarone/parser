@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dbarone.Parser
 {
-    public enum ParserLogType
+    public enum LogType
     {
         BEGIN,
         END,
@@ -15,10 +15,10 @@ namespace Dbarone.Parser
         FAILURE
     }
 
-    public class ParserLogArgs
+    public class LogArgs
     {
         public int NestingLevel { get; set; }
         public string Message { get; set; }
-        public ParserLogType ParserLogType { get; set; }
+        public LogType LogType { get; set; }
     }
 }

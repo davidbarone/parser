@@ -8,6 +8,6 @@ namespace Dbarone.Parser
 {
     public interface ILoggable
     {
-        Action<object, ParserLogArgs> ParserLogFunc { get; set; }
+        Action<object, LogArgs> LogHandler { get; set; }
     }
 }

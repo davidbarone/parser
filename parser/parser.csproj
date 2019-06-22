@@ -48,7 +48,7 @@
     <Compile Include="Parser\Node.cs" />
     <Compile Include="Parser\Parser.cs" />
     <Compile Include="Parser\ParserContext.cs" />
-    <Compile Include="Parser\ParserLogArgs.cs" />
+    <Compile Include="Parser\LogArgs.cs" />
     <Compile Include="Parser\ProductionRule.cs" />
     <Compile Include="Parser\RuleType.cs" />
     <Compile Include="Parser\Symbol.cs" />

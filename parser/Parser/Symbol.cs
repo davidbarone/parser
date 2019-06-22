@@ -41,7 +41,7 @@ namespace Dbarone.Parser
 
             this.Name = name;
             if (parts == null || parts.Length == 1)
-                this.Alias = this.Name;
+                this.Alias = this.Name.Replace("'","");         // remove special ' character.
 
             this.Optional = modifier == "?" || modifier == "*";
             this.Many = modifier == "+" || modifier == "*";
@@ -73,7 +73,7 @@ namespace Dbarone.Parser
         /// </summary>
         public bool Ignore { get; set; }
 
-        public Action<object, ParserLogArgs> ParserLogFunc { get; set; }
+        public Action<object, LogArgs> LogHandler { get; set; }
 
         /// <summary>
         /// Matches symbol to input.
@@ -113,9 +113,9 @@ namespace Dbarone.Parser
         /// <returns>True if successful. The abstract syntax tree is constructed using the context.Results object.</returns>
         public bool Parse(ParserContext context)
         {
-            ParserLogFunc?.Invoke(this, new ParserLogArgs
+            LogHandler?.Invoke(this, new LogArgs
             {
-                ParserLogType = ParserLogType.BEGIN,
+                LogType = LogType.BEGIN,
                 NestingLevel = context.CurrentProductionRule.Count(),
                 Message = $"Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]"
             });
@@ -167,7 +167,7 @@ namespace Dbarone.Parser
 
                         foreach (var rule in rules)
                         {
-                            rule.ParserLogFunc = this.ParserLogFunc;
+                            rule.LogHandler = this.LogHandler;
                             object obj = null;
                             ok = rule.Parse(context, out obj);
                             if (ok)
@@ -198,9 +198,9 @@ namespace Dbarone.Parser
             // return true if match (at least once).
             var success = ok || once || Optional;
 
-            ParserLogFunc?.Invoke(this, new ParserLogArgs
+            LogHandler?.Invoke(this, new LogArgs
             {
-                ParserLogType = success ? ParserLogType.SUCCESS : ParserLogType.FAILURE,
+                LogType = success ? LogType.SUCCESS : LogType.FAILURE,
                 NestingLevel = context.CurrentProductionRule.Count(),
                 Message = $"Token Index: {context.CurrentTokenIndex}, Results: {context.Results.Count()}, Symbol={this.Name}, Next Token=[{context.PeekToken().TokenName} - \"{context.PeekToken().TokenValue}\"]"
             });

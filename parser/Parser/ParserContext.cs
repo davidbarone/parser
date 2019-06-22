@@ -48,6 +48,11 @@ namespace Dbarone.Parser
             return Results.Pop();
         }
 
+        public object PeekResult()
+        {
+            return Results.Peek();
+        }
+
         /// <summary>
         /// Returns true if past the end of the token list.
         /// </summary>

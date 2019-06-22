@@ -13,18 +13,18 @@ namespace Dbarone.Parser
         public static int Failed = 0;
         public bool debug = false;
 
-        public void ParserLogFunc(object sender, ParserLogArgs args)
+        public void ParserLogFunc(object sender, LogArgs args)
         {
-            if (args.ParserLogType==ParserLogType.BEGIN || args.ParserLogType == ParserLogType.END)
+            if (args.LogType==LogType.BEGIN || args.LogType == LogType.END)
                 Console.ForegroundColor = ConsoleColor.Magenta;
-            else if (args.ParserLogType == ParserLogType.FAILURE)
+            else if (args.LogType == LogType.FAILURE)
                 Console.ForegroundColor = ConsoleColor.Red;
-            else if (args.ParserLogType == ParserLogType.INFORMATION)
+            else if (args.LogType == LogType.INFORMATION)
                 Console.ForegroundColor = ConsoleColor.White;
-            else if (args.ParserLogType == ParserLogType.SUCCESS)
+            else if (args.LogType == LogType.SUCCESS)
                 Console.ForegroundColor = ConsoleColor.Green;
 
-            Console.WriteLine($"{new String(' ', args.NestingLevel)} {args.ParserLogType.ToString()} {args.Message}");
+            Console.WriteLine($"{new String(' ', args.NestingLevel)} {args.LogType.ToString()} {args.Message}");
             Console.ForegroundColor = ConsoleColor.Gray;
         }
 
@@ -63,7 +63,7 @@ namespace Dbarone.Parser
             {
                 var parser = new Parser(grammar, productionRule);
                 if (debug)
-                    parser.ParserLogFunc = ParserLogFunc;
+                    parser.LogHandler = ParserLogFunc;
 
                 var rules = parser.ProductionRules;
 
