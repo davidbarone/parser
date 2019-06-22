@@ -338,17 +338,17 @@ the order of rules is important. As the parser adopts a brute force approach, it
 ## Left Recursion
 The parser currently has an 'experimental' feature for removing direct left recursion. A rule is directly left recursive if it has a form where the left most symbol is itself, for example:
 
-`a = ab | C;`
+`a = a b | C;`
 
 The parser attempts to remove left recursion by first replacing the above rule with a new set of rules:
 ```
-a = Ca';
-a'= ba' | ε;
+a = C a';
+a'= b a' | ε;
 ```
 A second round of substitions then attempts to remove the empty rule (essentially a' is optional):
 ```
-a = Ca';
-a'= ba';
+a = C a';
+a'= b a';
 a = C;
 a' = b;
 ```
@@ -364,7 +364,7 @@ Can be rewritten as:
 Additionally, the alias modification rules mean that C & B can be 'aliased' in the tree for improved semantics.
 
 ## Abstract syntax tree structure
-The abstract syntax tree structure uses `Node` objects to represent non-terminal nodes, and `Token` objects to represent terminal nodes. The `Node` object has a properties collection. This properties collection contains all the symbols gathered during parsing. The property names are the node names, or the aliases (if specified). The properties collection can contain `Node` objects, `Token` objects, or lists of them.
+The abstract syntax tree structure uses `Node` objects to represent non-terminal nodes, and `Token` objects to represent terminal nodes. Each `Node` object has a properties collection. This properties collection contains all the child symbols gathered during parsing. The property names are the node names, or the aliases (if specified). The properties collection create the tree structure. The properties collection can contain `Node` objects, `Token` objects, or lists of them.
 
 ## Processing a Tree Using the Visitor Class
 A `Visitor` class is included which allows for an abstract syntax tree to be processed. A new visitor is created using:
@@ -386,9 +386,10 @@ Visitors do not need to be written for every rule / node type. By default if no 
 
 ## Unit Tests
 A set of unit tests is included in the project. As well as testing the accuracy of the system, these tests show how the parser is used. Test examples include:
-- FooBarBazTests: A very simple grammar.
-- ExpressionTests: A simple numeric expression parser for +,-,*,/ operators as well as parentheses.
-- SubRuleTests: A version of the ExpressionTests grammar using subrules
-- LeftRecursionTests: A version of the ExpressionTests grammar using left recursion (experimental).
-- SqlishTests: A simple SQL-like grammar.
+- #FooBarBazTests#: A very simple grammar.
+- #ExpressionTests#: A simple numeric expression parser for +,-,*,/ operators as well as parentheses.
+- #SubRuleTests#: A version of the ExpressionTests grammar using subrules
+- #LeftRecursionTests#: A version of the ExpressionTests grammar using left recursion (experimental).
+- #SqlishTests#: A simple SQL-like grammar.
+
 --- end ---
