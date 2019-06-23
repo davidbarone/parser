@@ -49,7 +49,7 @@ mul_div_term    = FACTORS:factor, FACTORS:mul_div_term_*;
 mul_div_term_   = OP:DIV_OP, factor | OP:MUL_OP, factor;
 
 factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
-primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
+primary         = NUMBER_LITERAL | LPAREN!, expression, RPAREN!;";
 
         public Visitor ExpressionVisitor
         {

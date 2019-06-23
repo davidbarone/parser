@@ -42,7 +42,7 @@ RPAREN         = ""\)"";
 expression      = TERMS:(:term, :(OP:MINUS_OP, term | OP:PLUS_OP, term)*);
 term            = FACTORS:(:factor, :(OP:DIV_OP, factor | OP:MUL_OP, factor)*);
 factor          = primary | PLUS_OP, primary | MINUS_OP, primary;
-primary         = NUMBER_LITERAL | LPAREN, expression, RPAREN;";
+primary         = NUMBER_LITERAL | LPAREN!, expression, RPAREN!;";
 
         public Visitor SubRuleVisitor
         {

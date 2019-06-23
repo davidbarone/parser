@@ -73,6 +73,7 @@ Input: [{input ?? ""}]");
                 if (!string.IsNullOrEmpty(input))
                 {
                     var ast = parser.Parse(input, true);
+                    Console.Write(ast.PrettyPrint("", true));
                     if (visitor != null)
                     {
                         var actual = parser.Execute(ast, visitor, resultMapping);
