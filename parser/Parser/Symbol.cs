@@ -41,7 +41,7 @@ namespace Dbarone.Parser
 
             this.Name = name;
             if (parts == null || parts.Length == 1)
-                this.Alias = this.Name.Replace("'","");         // remove special ' character.
+                this.Alias = this.Name;
 
             this.Optional = modifier == "?" || modifier == "*";
             this.Many = modifier == "+" || modifier == "*";

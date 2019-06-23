@@ -390,6 +390,41 @@ State can be persisted across handlers by using the `Visitor.State` property.
 
 Visitors do not need to be written for every rule / node type. By default if no visitor is found for a node, the default behaviour is for the engine to recursively visit every node property within the parent node. 
 
+## Debugging
+The `Parser` class exposes a property `LogHandler` which if specified, enables the caller to output logging information related to the parsing algorithm.
+
+Additionally, a pretty-print extension method is available to display the abstract syntax tree in a user-friendly format. The tree can be displayed for any root node by calling:
+
+`node.PrettyPrint("", true);`
+
+The output is displayed similar to below:
+```
++- search_condition
+   +- boolean_term
+   |  +- boolean_primary
+   |     +- search_condition
+   |        +- boolean_term
+   |           +- comparison_predicate
+   |           |  +- IDENTIFIER [LEVEL_2]
+   |           |  +- EQ_OP [EQ]
+   |           |  +- LITERAL_STRING ['2']
+   |           +- comparison_predicate
+   |              +- IDENTIFIER [LEVEL_3]
+   |              +- NE_OP [NE]
+   |              +- LITERAL_NUMBER [4]
+   +- boolean_term
+      +- boolean_primary
+         +- search_condition
+            +- boolean_term
+               +- comparison_predicate
+               |  +- IDENTIFIER [LEVEL_4]
+               |  +- EQ_OP [EQ]
+               |  +- LITERAL_STRING ['Z']
+               +- comparison_predicate
+                  +- IDENTIFIER [LEVEL_5]
+                  +- NE_OP [NE]
+                  +- LITERAL_NUMBER [123]
+```
 ## Unit Tests
 A set of unit tests is included in the project. As well as testing the accuracy of the system, these tests show how the parser is used. Test examples include:
 - **FooBarBazTests**: A very simple grammar.
