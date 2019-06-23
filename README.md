@@ -397,7 +397,11 @@ Additionally, a pretty-print extension method is available to display the abstra
 
 `node.PrettyPrint("", true);`
 
-The output is displayed similar to below:
+For example, using the SQL-ish grammar example (included in the unit tests), an input of:
+
+`(LEVEL_2 EQ '2' AND LEVEL_3 NE 4) OR (LEVEL_4 EQ 'Z' AND LEVEL_5 NE 123)`
+
+Generates a tree as follows:
 ```
 +- search_condition
    +- boolean_term
