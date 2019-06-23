@@ -17,7 +17,7 @@ For processing the input (through an abstract syntax tree), a special `Visitor` 
 ## Grammar
 A grammar is used to define the language for the parser. This grammar is created using 'BNF-ish' (BNF/EBNF) syntax, for example:
 ```
-(* Lexer Rules *)
+/* Lexer Rules */
 
 AND             = "\bAND\b";
 OR              = "\bOR\b";
@@ -40,7 +40,7 @@ LITERAL_NUMBER  = "[+-]?((\d+(\.\d*)?)|(\.\d+))";
 IDENTIFIER      = "[A-Z_][A-Z_0-9]*";
 WHITESPACE      = "\s+";
 
-(*Parser Rules *)
+/*Parser Rules */
 
 comparison_operator =   :EQ_OP | :NE_OP | :LT_OP | :LE_OP | :GT_OP | :GE_OP;
 comparison_operand  =   :LITERAL_STRING | :LITERAL_NUMBER | :IDENTIFIER;
@@ -67,7 +67,7 @@ The above grammar specifies an 'SQL-ish' grammar for constructing a 'filter' exp
 |\|        |Alternate expansion                      |
 |,         |Sequence / contanenation                 |
 |;         |Termination of rule                      |
-|(\*...\*) |Comment                                  |
+|/\*...\*/ |Comment                                  |
 |(...)     |Subrule                                  |
 |?         |Symbol modifier - 0 or 1 times (optional)|
 |+         |Symbol modifier - 1 or more times        |
@@ -80,15 +80,15 @@ The BNF-ish grammar is converted internally to a collection of production rule o
 private List<ProductionRule> BNFGrammar => new List<ProductionRule>
 {
       // Lexer Rules
-      new ProductionRule("COMMENT", @"\(\*.*\*\)"), // (*...*)
-      new ProductionRule("EQ", "="),                  // definition
-      new ProductionRule("COMMA", "[,]"),               // concatenation
-      new ProductionRule("COLON", "[:]"),               // rewrite / aliasing
-      new ProductionRule("SEMICOLON", ";"),           // termination
-      new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
-      new ProductionRule("OR", @"[|]"),                 // alternation
-      new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
-      new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_']+"),
+      new ProductionRule("COMMENT", @"\/\*.*\*\/"),                     // comment
+      new ProductionRule("EQ", "="),                                    // definition
+      new ProductionRule("COMMA", "[,]"),                               // concatenation
+      new ProductionRule("COLON", "[:]"),                               // rewrite / aliasing
+      new ProductionRule("SEMICOLON", ";"),                             // termination
+      new ProductionRule("MODIFIER", "[?!+*]"),                         // modifies the symbol
+      new ProductionRule("OR", @"[|]"),                                 // alternation
+      new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),     // literal string
+      new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_']+"),       // identifier / label / alias
       new ProductionRule("NEWLINE", "\n"),
       new ProductionRule("LPAREN", @"\("),
       new ProductionRule("RPAREN", @"\)"),

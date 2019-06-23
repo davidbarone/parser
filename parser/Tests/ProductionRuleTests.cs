@@ -23,13 +23,13 @@ namespace Dbarone.Parser
             DoTest("Two Rules", @"SIMPLE=""X"";ANOTHER=""Y"";", null, null, null, null, null, false);
             DoTest("Multi Line", @"
 
-(* This is a test *)
+/* This is a test */
 
 SIMPLE  =   ""X"";
 ANOTHER=""Y"";", null, null, null, null, null, false);
             DoTest("Comments", @"
-SIMPLE=""X""; (* This is a comment *)
-(* Another comment *)
+SIMPLE=""X""; /* This is a comment */
+/* Another comment */
 ANOTHER=""Y"";", null, null, null, null, null, false);
             DoTest("Lexer and Parser Rule 1", @"
 SIMPLE=""X"";

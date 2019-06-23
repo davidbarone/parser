@@ -46,13 +46,13 @@ namespace Dbarone.Parser
         private List<ProductionRule> BNFGrammar => new List<ProductionRule>
         {
             // Lexer Rules
-            new ProductionRule("COMMENT", @"\(\*.*\*\)"), // (*...*)
-            new ProductionRule("EQ", "="),                  // definition
-            new ProductionRule("COMMA", "[,]"),               // concatenation
-            new ProductionRule("COLON", "[:]"),               // rewrite / aliasing
-            new ProductionRule("SEMICOLON", ";"),           // termination
-            new ProductionRule("MODIFIER", "[?!+*]"),      // modifies the symbol
-            new ProductionRule("OR", @"[|]"),                 // alternation
+            new ProductionRule("COMMENT", @"\/\*.*\*\/"),           // comments 
+            new ProductionRule("EQ", "="),                          // definition
+            new ProductionRule("COMMA", "[,]"),                     // concatenation
+            new ProductionRule("COLON", "[:]"),                     // rewrite / aliasing
+            new ProductionRule("SEMICOLON", ";"),                   // termination
+            new ProductionRule("MODIFIER", "[?!+*]"),               // modifies the symbol
+            new ProductionRule("OR", @"[|]"),                       // alternation
             new ProductionRule("QUOTEDLITERAL", @"""(?:[^""\\]|\\.)*"""),
             new ProductionRule("IDENTIFIER", "[a-zA-Z][a-zA-Z0-9_']+"),
             new ProductionRule("NEWLINE", "\n"),

@@ -11,7 +11,7 @@ namespace Dbarone.Parser
     {
         public override void DoTests()
         {
-            DoTest("LEFT_RECURSION_1", LeftRecursionGrammar, "1+2*3", "expression", LeftRecursionVisitor, (d)=> (int)d.Stack.Pop(), 7, false);
+            DoTest("LEFT_RECURSION_1", LeftRecursionGrammar, "1+2*3", "expression", null, null, null, false);
         }
 
         public string LeftRecursionGrammar => @"

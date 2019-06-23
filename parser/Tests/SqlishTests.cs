@@ -68,7 +68,7 @@ namespace Dbarone.Parser
         /// </summary>
         public string SqlishGrammar => @"
 
-(* Lexer Rules *)
+/* Lexer Rules */
 
 AND             = ""\bAND\b"";
 OR              = ""\bOR\b"";
@@ -91,7 +91,7 @@ LITERAL_NUMBER  = ""[+-]?((\d+(\.\d*)?)|(\.\d+))"";
 IDENTIFIER      = ""[A-Z_][A-Z_0-9]*"";
 WHITESPACE      = ""\s+"";
 
-(*Parser Rules *)
+/*Parser Rules */
 
 comparison_operator =   :EQ_OP | :NE_OP | :LT_OP | :LE_OP | :GT_OP | :GE_OP;
 comparison_operand  =   :LITERAL_STRING | :LITERAL_NUMBER | :IDENTIFIER;
